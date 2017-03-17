@@ -63,6 +63,41 @@ func GetEqualHigherTasks(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(listTasks)
 }
 
+//function used to remove the task once it finished
+func RemoveTask(w http.ResponseWriter, req *http.Request) {
+
+	params := mux.Vars(req)
+	taskID := params["taskid"]
+
+	for i, task := range class1Tasks {
+		if task.TaskID == taskID {
+			class1Tasks = append(class1Tasks[:i], class1Tasks[i+1:]...)
+			return
+		}
+	}
+		
+	for i, task := range class2Tasks {
+		if task.TaskID == taskID {
+			class2Tasks = append(class2Tasks[:i], class2Tasks[i+1:]...)
+			return
+		}
+	}	
+	for i, task := range class3Tasks {
+		if task.TaskID == taskID {
+			class3Tasks = append(class3Tasks[:i], class3Tasks[i+1:]...)
+			return
+		}
+	}	
+	for i, task := range class4Tasks {
+		if task.TaskID == taskID {
+			class4Tasks = append(class4Tasks[:i], class4Tasks[i+1:]...)
+			fmt.Println("after removing")
+			fmt.Println(class4Tasks)
+			return
+		}
+	}	
+}
+
 func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var task Task
@@ -71,6 +106,7 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("Task created")
 	fmt.Println(task)
+
 	switch requestClass {
 		case "1":
 			class1Tasks = append(class1Tasks, task)
@@ -115,6 +151,7 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/{requestclass}",CreateTask).Methods("POST")
 	router.HandleFunc("/task/higher/{requestclass}", GetHigherTasks).Methods("GET")
 	router.HandleFunc("/task/equalhigher/{requestclass}", GetEqualHigherTasks).Methods("GET")	
+	router.HandleFunc("/task/remove/{taskid}", RemoveTask).Methods("GET")
 
 	log.Fatal(http.ListenAndServe("192.168.1.154:1234",router))
 }
