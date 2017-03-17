@@ -11,7 +11,8 @@ import (
 type Task struct {
 	TaskID string				`json:"taskid,omitempty"`
 	TaskClass string 			`json:"taskclass,omitempty"`
-	AllocatedResources string	`json:"allocatedresources,omitempty"`
+	CPU float64				`json:"cpu,omitempty"`
+	Memory float64				`json:"memory,omitempty"`
 	TaskType string				`json:"tasktype,omitempty"`
 	CutReceived string			`json:"cutreceived,omitempty"`
 }
@@ -25,9 +26,7 @@ var class4Tasks []Task
 func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	requestClass := params["requestclass"]
-	
-	fmt.Println("entrou aqui")
-		
+			
 	listTasks := make([]Task, 0)
 	
 	if requestClass == "1" {
@@ -70,6 +69,8 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewDecoder(req.Body).Decode(&task)
 	requestClass := params["requestclass"]
 
+	fmt.Println("Task created")
+	fmt.Println(task)
 	switch requestClass {
 		case "1":
 			class1Tasks = append(class1Tasks, task)
@@ -84,6 +85,7 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 			class4Tasks = append(class4Tasks, task)
 			break
 	}
+	fmt.Println(class4Tasks)
 }
 
 func main() {
