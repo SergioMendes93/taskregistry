@@ -69,6 +69,10 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func GetClass4Tasks(w http.ResponseWriter, req *http.Request) {
+	json.NewEncoder(w).Encode(class4Tasks)	
+}
+
 //returns tasks higher than request class
 func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
@@ -201,6 +205,7 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/equalhigher/{requestclass}", GetEqualHigherTasks).Methods("GET")
 	router.HandleFunc("/task/remove/{taskid}", RemoveTask).Methods("GET")
 	router.HandleFunc("/task/updatetask/{taskclass}&{newcpu}&{newmemory}&{taskid}", UpdateTask).Methods("GET")
+	router.HandleFunc("/task/class4", GetClass4Tasks).Methods("GET")
 
 	log.Fatal(http.ListenAndServe("192.168.1.154:1234", router))
 }
