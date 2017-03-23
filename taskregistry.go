@@ -12,6 +12,7 @@ import (
 type Task struct {
 	TaskID      string `json:"taskid,omitempty"`
 	TaskClass   string `json:"taskclass,omitempty"`
+	Image		string `json:"image,omitempty"`
 	CPU         string `json:"cpu,omitempty"`
 	Memory      string `json:"memory,omitempty"`
 	TaskType    string `json:"tasktype,omitempty"`
@@ -157,7 +158,6 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("Task created")
 	fmt.Println(task)
-	fmt.Println(requestClass)
 
 	switch requestClass {
 	case "1":
