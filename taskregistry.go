@@ -10,19 +10,46 @@ import (
 )
 
 type Task struct {
-	TaskID      string `json:"taskid,omitempty"`
-	TaskClass   string `json:"taskclass,omitempty"`
-	Image		string `json:"image,omitempty"`
-	CPU         string `json:"cpu,omitempty"`
-	Memory      string `json:"memory,omitempty"`
-	TaskType    string `json:"tasktype,omitempty"`
-	CutReceived string `json:"cutreceived,omitempty"`
+	TaskID     		string `json:"taskid,omitempty"`
+	TaskClass    	string `json:"taskclass,omitempty"`
+	Image		  	string `json:"image,omitempty"`
+	CPU           	string `json:"cpu,omitempty"`
+	TotalResouces 	string `json:"totalresouces,omitempty"` //total resouces allocated
+	Memory      	string `json:"memory,omitempty"`
+	TaskType    	string `json:"tasktype,omitempty"`
+	CutReceived 	string `json:"cutreceived,omitempty"`
 }
 
 var class1Tasks []Task
 var class2Tasks []Task
 var class3Tasks []Task
 var class4Tasks []Task
+
+//adapted binary search algorithm for inserting orderly based on total resources of a task
+func Sort(classList []Task, searchValue string)(index int) {
+	listLength := len(classList)
+    lowerBound := 0
+    upperBound := listLength- 1
+
+    for {
+        midPoint := (upperBound + lowerBound)/2
+
+        fmt.Println(midPoint)
+        if lowerBound > upperBound && classList[midPoint] > searchValue {
+            return midPoint 
+        } else if lowerBound > upperBound {
+            return midPoint + 1
+        }
+
+        if classList[midPoint] < searchValue {
+            lowerBound = midPoint + 1
+        } else if classList[midPoint] > searchValue {
+             upperBound = midPoint - 1
+        } else if classList[midPoint] == searchValue {
+            return midPoint
+      	}
+	}
+}
 
 //this function will be used to update task info, when a cut is performed on the task
 func UpdateTask(w http.ResponseWriter, req *http.Request) {
@@ -150,6 +177,19 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func InsertTask(classTask [], index int) ([]Task) {
+	tmp := make([]int, 0)
+	 if index >= len(classTask) {
+    	tmp = append(tmp, classTask...)
+       	tmp = append(tmp, value)
+    } else {
+        tmp = append(tmp, classTask[:index]...)
+        tmp = append(tmp, value)
+        tmp = append(tmp, classTask[index:]...)
+    }
+	return tmp
+}
+
 func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var task Task
@@ -161,16 +201,20 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 	switch requestClass {
 	case "1":
-		class1Tasks = append(class1Tasks, task)
+		index := Sort(class1Tasks, task.TotalResources)
+		class1Tasks = InsertTask(class1Tasks, index)
 		break
 	case "2":
-		class2Tasks = append(class2Tasks, task)
+		index := Sort(class2Tasks, task.TotalResources)
+		class2Tasks = InsertTask(class2Tasks, index)
 		break
 	case "3":
-		class3Tasks = append(class3Tasks, task)
+		index := Sort(class3Tasks, task.TotalResources)
+		class3Tasks = InsertTask(class3Tasks, index)
 		break
 	case "4":
-		class4Tasks = append(class4Tasks, task)
+		index := Sort(class4Tasks, task.TotalResources)
+		class4Tasks = InsertTask(class4Tasks, index)
 		break
 	}
 	fmt.Println(class4Tasks)
