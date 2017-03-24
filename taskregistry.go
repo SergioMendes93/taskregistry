@@ -14,7 +14,7 @@ type Task struct {
 	TaskClass    	string `json:"taskclass,omitempty"`
 	Image		  	string `json:"image,omitempty"`
 	CPU           	string `json:"cpu,omitempty"`
-	TotalResouces 	string `json:"totalresouces,omitempty"` //total resouces allocated
+	TotalResources 	string `json:"totalresources,omitempty"` //total resouces allocated
 	Memory      	string `json:"memory,omitempty"`
 	TaskType    	string `json:"tasktype,omitempty"`
 	CutReceived 	string `json:"cutreceived,omitempty"`
@@ -35,17 +35,17 @@ func Sort(classList []Task, searchValue string)(index int) {
         midPoint := (upperBound + lowerBound)/2
 
         fmt.Println(midPoint)
-        if lowerBound > upperBound && classList[midPoint] > searchValue {
+        if lowerBound > upperBound && classList[midPoint].TotalResources > searchValue {
             return midPoint 
         } else if lowerBound > upperBound {
             return midPoint + 1
         }
 
-        if classList[midPoint] < searchValue {
+        if classList[midPoint].TotalResources < searchValue {
             lowerBound = midPoint + 1
-        } else if classList[midPoint] > searchValue {
+        } else if classList[midPoint].TotalResources > searchValue {
              upperBound = midPoint - 1
-        } else if classList[midPoint] == searchValue {
+        } else if classList[midPoint].TotalResources == searchValue {
             return midPoint
       	}
 	}
@@ -58,6 +58,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 	taskID := params["taskid"]
 	newCPU := params["newcpu"]
 	newMemory := params["newmemory"]
+	cutReceived := params["cutreceived"]	
 
 	fmt.Println("novo update")
 
@@ -67,6 +68,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 			if task.TaskID == taskID {
 				class1Tasks[index].CPU = newCPU
 				class1Tasks[index].Memory = newMemory
+				class1Tasks[index].CutReceived = cutReceived
 			}
 		}
 		break
@@ -75,6 +77,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 			if task.TaskID == taskID {
 				class2Tasks[index].CPU = newCPU
 				class2Tasks[index].Memory = newMemory
+				class2Tasks[index].CutReceived = cutReceived
 			}
 		}
 		break
@@ -83,6 +86,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 			if task.TaskID == taskID {
 				class3Tasks[index].CPU = newCPU
 				class3Tasks[index].Memory = newMemory
+				class3Tasks[index].CutReceived = cutReceived
 			}
 		}
 		break
@@ -91,6 +95,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 			if task.TaskID == taskID {
 				class4Tasks[index].CPU = newCPU
 				class4Tasks[index].Memory = newMemory
+				class4Tasks[index].CutReceived = cutReceived
 			}
 		}
 		break
@@ -177,14 +182,14 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func InsertTask(classTask [], index int) ([]Task) {
-	tmp := make([]int, 0)
+func InsertTask(classTask []Task, index int, task Task) ([]Task) {
+	tmp := make([]Task, 0)
 	 if index >= len(classTask) {
     	tmp = append(tmp, classTask...)
-       	tmp = append(tmp, value)
+       	tmp = append(tmp, task)
     } else {
         tmp = append(tmp, classTask[:index]...)
-        tmp = append(tmp, value)
+        tmp = append(tmp, task)
         tmp = append(tmp, classTask[index:]...)
     }
 	return tmp
@@ -202,19 +207,19 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	switch requestClass {
 	case "1":
 		index := Sort(class1Tasks, task.TotalResources)
-		class1Tasks = InsertTask(class1Tasks, index)
+		class1Tasks = InsertTask(class1Tasks, index, task)
 		break
 	case "2":
 		index := Sort(class2Tasks, task.TotalResources)
-		class2Tasks = InsertTask(class2Tasks, index)
+		class2Tasks = InsertTask(class2Tasks, index, task)
 		break
 	case "3":
 		index := Sort(class3Tasks, task.TotalResources)
-		class3Tasks = InsertTask(class3Tasks, index)
+		class3Tasks = InsertTask(class3Tasks, index, task)
 		break
 	case "4":
 		index := Sort(class4Tasks, task.TotalResources)
-		class4Tasks = InsertTask(class4Tasks, index)
+		class4Tasks = InsertTask(class4Tasks, index, task)
 		break
 	}
 	fmt.Println(class4Tasks)
@@ -248,7 +253,7 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/higher/{requestclass}", GetHigherTasks).Methods("GET")
 	router.HandleFunc("/task/equalhigher/{requestclass}", GetEqualHigherTasks).Methods("GET")
 	router.HandleFunc("/task/remove/{taskid}", RemoveTask).Methods("GET")
-	router.HandleFunc("/task/updatetask/{taskclass}&{newcpu}&{newmemory}&{taskid}", UpdateTask).Methods("GET")
+	router.HandleFunc("/task/updatetask/{taskclass}&{newcpu}&{newmemory}&{taskid}&{cutreceived}", UpdateTask).Methods("GET")
 	router.HandleFunc("/task/class4", GetClass4Tasks).Methods("GET")
 
 	log.Fatal(http.ListenAndServe("192.168.1.154:1234", router))
