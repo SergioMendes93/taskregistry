@@ -19,6 +19,7 @@ type Task struct {
 	Memory      	string `json:"memory,omitempty"`
 	TaskType    	string `json:"tasktype,omitempty"`
 	CutReceived 	string `json:"cutreceived,omitempty"`
+	CutToReceive 	string `json:"cuttorceieve,omitempty"`
 }
 
 var class1Tasks []Task
@@ -175,12 +176,8 @@ func tasksToBeCut(listTasks []Task, hostClass string) ([]Task) {
 	for _, task := range listTasks {
 		taskCanBeCut, cutToReceive := taskCanBeCut(task, hostClass)
 		if taskCanBeCut {
-			if cutToReceive == "full" {
+				task.CutToReceive = cutToReceive //the request will receive a smaller cut than the maximum supported due to cut restrictions
 				returnList = append(returnList, task)
-			} else {
-				//TODO definir o cut que vai receber. Possivelmente algo na struct que indica o cut
-				returnList = append(returnList, task)
-			}
 		}
 	}
 	return returnList
@@ -195,7 +192,7 @@ func taskCanBeCut(task Task, hostClass string) (bool, string) {
 			} else if hostClass == "2" { //if the host is class 2 and the task is class 2, we cannot cut the task because it would suffer twice the penalty. Because it is already feeling the penalty of the overbooking
 				return false, ""
 			} else {
-				return true, "full"
+				return true, MAX_CUT_CLASS2
 			}		
 		case "3":
 			if task.CutReceived == MAX_CUT_CLASS3 {
@@ -203,13 +200,14 @@ func taskCanBeCut(task Task, hostClass string) (bool, string) {
 			} else if hostClass == "3" {
 				return false, ""
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
-				//TODO
-				return true, "smaller cut"
+				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS3,64) - strconv.ParseFloat(MAX_CUT_CLASS2,64)
+				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			} else {
-				//TODO: tenho que ter cuidado com isto. Imaginando o caso em que está num host class 2 e este request sofreu 30% cut
+				// Imaginando o caso em que está num host class 2 e este request sofreu 30% cut
 				//mas depois este host passa a class 1. nao posso fazer cut full. tenho que fazer até preencher  até ficar full,
 				//neste caso mais 20% ficando 50% cut
-				return true, "full"
+				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS3,64) - strconv.ParseFloat(task.CutReceived,64)
+				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			}
 			
 		case "4":
@@ -218,13 +216,14 @@ func taskCanBeCut(task Task, hostClass string) (bool, string) {
 			} else if hostClass == "4" {
 				return false, ""
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
-				//TODO
-				return true, "smaller cut"
+				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS4,64) - strconv.ParseFloat(MAX_CUT_CLASS2,64)
+				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			} else if hostClass == "3" {
-				//TODO 
-				return true, "smaller cut"
+				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS4,64) - strconv.ParseFloat(MAX_CUT_CLASS3,64)
+				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			}else {
-				return true, "full"
+				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS4,64) - strconv.ParseFloat(task.CutReceived,64)
+				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			}
 	}
 	return false, ""
@@ -298,9 +297,6 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewDecoder(req.Body).Decode(&task)
 	requestClass := params["requestclass"]
 
-	fmt.Println("Task created")
-	fmt.Println(task)
-
 	switch requestClass {
 	case "1":
 		if len(class1Tasks) == 0 {
@@ -311,6 +307,7 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 		class1Tasks = InsertTask(class1Tasks, index, task)
 		break
 	case "2":
+		task.CutToReceive = MAX_CUT_CLASS2
 		if len(class2Tasks) == 0 {
 			class2Tasks = append(class2Tasks, task)
 			break
@@ -320,6 +317,7 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 		class2Tasks = InsertTask(class2Tasks, index, task)
 		break
 	case "3":
+		task.CutToReceive = MAX_CUT_CLASS3
 		if len(class3Tasks) == 0 {
 			class3Tasks = append(class3Tasks, task)
 			break
@@ -329,6 +327,7 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 		class3Tasks = InsertTask(class3Tasks, index, task)
 		break
 	case "4":
+		task.CutToReceive = MAX_CUT_CLASS4
 		if len(class4Tasks) == 0 {
 			class4Tasks = append(class4Tasks, task)
 			break
@@ -338,7 +337,6 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 		class4Tasks = InsertTask(class4Tasks, index, task)
 		break
 	}
-	fmt.Println(class4Tasks)
 }
 
 func main() {
