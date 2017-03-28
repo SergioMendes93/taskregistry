@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net"
+	"strconv"
 )
 
 type Task struct {
@@ -19,7 +20,7 @@ type Task struct {
 	Memory      	string `json:"memory,omitempty"`
 	TaskType    	string `json:"tasktype,omitempty"`
 	CutReceived 	string `json:"cutreceived,omitempty"`
-	CutToReceive 	string `json:"cuttorceieve,omitempty"`
+	CutToReceive 	string `json:"cuttoreceive,omitempty"`
 }
 
 var class1Tasks []Task
@@ -200,13 +201,17 @@ func taskCanBeCut(task Task, hostClass string) (bool, string) {
 			} else if hostClass == "3" {
 				return false, ""
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
-				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS3,64) - strconv.ParseFloat(MAX_CUT_CLASS2,64)
+				maxCutClass3, _ := strconv.ParseFloat(MAX_CUT_CLASS3, 64)
+				maxCutClass2, _ := strconv.ParseFloat(MAX_CUT_CLASS2, 64)
+				cutToReceive := maxCutClass3 - maxCutClass2
 				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			} else {
 				// Imaginando o caso em que está num host class 2 e este request sofreu 30% cut
 				//mas depois este host passa a class 1. nao posso fazer cut full. tenho que fazer até preencher  até ficar full,
 				//neste caso mais 20% ficando 50% cut
-				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS3,64) - strconv.ParseFloat(task.CutReceived,64)
+				maxCutClass3, _ := strconv.ParseFloat(MAX_CUT_CLASS3, 64)
+				cutReceived, _ := strconv.ParseFloat(task.CutReceived,64)				
+				cutToReceive := maxCutClass3 - cutReceived
 				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			}
 			
@@ -216,13 +221,19 @@ func taskCanBeCut(task Task, hostClass string) (bool, string) {
 			} else if hostClass == "4" {
 				return false, ""
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
-				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS4,64) - strconv.ParseFloat(MAX_CUT_CLASS2,64)
+				maxCutClass4, _ := strconv.ParseFloat(MAX_CUT_CLASS4, 64)
+				maxCutClass2, _ := strconv.ParseFloat(MAX_CUT_CLASS2, 64)
+				cutToReceive := maxCutClass4 - maxCutClass2
 				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			} else if hostClass == "3" {
-				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS4,64) - strconv.ParseFloat(MAX_CUT_CLASS3,64)
+				maxCutClass4, _ := strconv.ParseFloat(MAX_CUT_CLASS4, 64)
+				maxCutClass3, _ := strconv.ParseFloat(MAX_CUT_CLASS3, 64)
+				cutToReceive := maxCutClass4 - maxCutClass3
 				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			}else {
-				cutToReceive := strconv.ParseFloat(MAX_CUT_CLASS4,64) - strconv.ParseFloat(task.CutReceived,64)
+				maxCutClass4, _ := strconv.ParseFloat(MAX_CUT_CLASS4, 64)
+				cutReceived, _ := strconv.ParseFloat(task.CutReceived, 64)
+				cutToReceive := maxCutClass4 - cutReceived
 				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
 			}
 	}
