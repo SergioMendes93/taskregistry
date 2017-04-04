@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"net"
 	"strconv"
+	"sync"
 )
 
 type Task struct {
-	TaskID     		string `json:"taskid,omitempty"`
+	TaskID     	string `json:"taskid,omitempty"`
 	TaskClass    	string `json:"taskclass,omitempty"`
-	Image		  	string `json:"image,omitempty"`
+	Image		string `json:"image,omitempty"`
 	CPU           	string `json:"cpu,omitempty"`
 	TotalResources 	string `json:"totalresources,omitempty"` //total resouces allocated
 	Memory      	string `json:"memory,omitempty"`
@@ -27,6 +28,11 @@ var class1Tasks []Task
 var class2Tasks []Task
 var class3Tasks []Task
 var class4Tasks []Task
+
+var lockClass1Tasks = &sync.Mutex{}
+var lockClass2Tasks = &sync.Mutex{}
+var lockClass3Tasks = &sync.Mutex{}
+var lockClass4Tasks = &sync.Mutex{}
 
 var MAX_CUT_CLASS2 = "0"
 var MAX_CUT_CLASS3 = "0"
@@ -64,31 +70,45 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	taskID := params["taskid"]
 
+	lockClass1Tasks.Lock()
 	for i, task := range class1Tasks {
 		if task.TaskID == taskID {
 			class1Tasks = append(class1Tasks[:i], class1Tasks[i+1:]...)
+			lockClass1Tasks.Unlock()
 			return
 		}
 	}
+	lockClass1Tasks.Unlock()
 
+	lockClass2Tasks.Lock()
 	for i, task := range class2Tasks {
 		if task.TaskID == taskID {
 			class2Tasks = append(class2Tasks[:i], class2Tasks[i+1:]...)
+			lockClass2Tasks.Unlock()
 			return
 		}
 	}
+	lockClass2Tasks.Unlock()
+
+	lockClass3Tasks.Lock()
 	for i, task := range class3Tasks {
 		if task.TaskID == taskID {
 			class3Tasks = append(class3Tasks[:i], class3Tasks[i+1:]...)
+			lockClass3Tasks.Unlock()
 			return
 		}
-	}
+	}			
+    lockClass3Tasks.Unlock()
+
+	lockClass4Tasks.Lock()
 	for i, task := range class4Tasks {
 		if task.TaskID == taskID {
 			class4Tasks = append(class4Tasks[:i], class4Tasks[i+1:]...)
+			lockClass4Tasks.Unlock()
 			return
 		}
 	}
+	lockClass4Tasks.Unlock()
 }
 
 //this function will be used to update task info, when a cut is performed on the task
@@ -102,6 +122,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 
 	switch taskClass {
 		case "1":
+			lockClass1Tasks.Lock()
 			for index, task := range class1Tasks {
 				if task.TaskID == taskID {
 					class1Tasks[index].CPU = newCPU
@@ -109,8 +130,10 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 					class1Tasks[index].CutReceived = cutReceived
 				}
 			}
+			lockClass1Tasks.Unlock()
 			break
 	case "2":
+		lockClass2Tasks.Lock()
 		for index, task := range class2Tasks {
 			if task.TaskID == taskID {
 				class2Tasks[index].CPU = newCPU
@@ -118,8 +141,10 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 				class2Tasks[index].CutReceived = cutReceived
 			}
 		}
+		lockClass2Tasks.Unlock()
 		break
 	case "3":
+		lockClass3Tasks.Lock()
 		for index, task := range class3Tasks {
 			if task.TaskID == taskID {
 				class3Tasks[index].CPU = newCPU
@@ -127,8 +152,10 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 				class3Tasks[index].CutReceived = cutReceived
 			}
 		}
+		lockClass3Tasks.Unlock()
 		break
 	case "4":
+		lockClass4Tasks.Lock()
 		for index, task := range class4Tasks {
 			if task.TaskID == taskID {
 				class4Tasks[index].CPU = newCPU
@@ -136,12 +163,15 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 				class4Tasks[index].CutReceived = cutReceived
 			}
 		}
+		lockClass4Tasks.Unlock()
 		break
 	}
 }
 
 func GetClass4Tasks(w http.ResponseWriter, req *http.Request) {
+	lockClass4Tasks.Lock()
 	json.NewEncoder(w).Encode(class4Tasks)	
+	lockClass4Tasks.Unlock()
 }
 
 //returns tasks higher than request class
@@ -177,8 +207,8 @@ func tasksToBeCut(listTasks []Task, hostClass string) ([]Task) {
 	for _, task := range listTasks {
 		taskCanBeCut, cutToReceive := taskCanBeCut(task, hostClass)
 		if taskCanBeCut {
-				task.CutToReceive = cutToReceive //the request will receive a smaller cut than the maximum supported due to cut restrictions
-				returnList = append(returnList, task)
+			task.CutToReceive = cutToReceive //the request will receive a smaller cut than the maximum supported due to cut restrictions
+			returnList = append(returnList, task)
 		}
 	}
 	return returnList
@@ -249,16 +279,31 @@ func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 	listTasks := make([]Task, 0)
 
 	if requestClass == "1" {
+		lockClass2Tasks.Lock()
 		listTasks = append(listTasks, class2Tasks...)
+		lockClass2Tasks.Unlock()
+
+		lockClass3Tasks.Lock()
 		listTasks = append(listTasks, class3Tasks...)
+		lockClass3Tasks.Unlock()
+
+		lockClass4Tasks.Lock()
 		listTasks = append(listTasks, class4Tasks...)
+		lockClass4Tasks.Unlock()
+
 	} else if requestClass == "2" {
+		lockClass3Tasks.Lock()
 		listTasks = append(listTasks, class3Tasks...)
+		lockClass3Tasks.Lock()
+
+		lockClass4Tasks.Lock()
 		listTasks = append(listTasks, class4Tasks...)
+		lockClass4Tasks.Unlock()
 	} else if requestClass == "3" {
+		lockClass4Tasks.Lock()
 		listTasks = append(listTasks, class4Tasks...)
+		lockClass4Tasks.Unlock()
 	}
-	fmt.Println(listTasks)
 	json.NewEncoder(w).Encode(listTasks)
 }
 
@@ -310,42 +355,54 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 	switch requestClass {
 	case "1":
+		lockClass1Tasks.Lock()
 		if len(class1Tasks) == 0 {
 			class1Tasks = append(class1Tasks, task)
+			lockClass1Tasks.Unlock()
 			break
 		}
 		index := Sort(class1Tasks, task.TotalResources)
 		class1Tasks = InsertTask(class1Tasks, index, task)
+		lockClass1Tasks.Lock()
 		break
 	case "2":
 		task.CutToReceive = MAX_CUT_CLASS2
+		lockClass2Tasks.Lock()
 		if len(class2Tasks) == 0 {
 			class2Tasks = append(class2Tasks, task)
+			lockClass2Tasks.Unlock()
 			break
 		}
 
 		index := Sort(class2Tasks, task.TotalResources)
 		class2Tasks = InsertTask(class2Tasks, index, task)
+		lockClass2Tasks.Unlock()
 		break
 	case "3":
 		task.CutToReceive = MAX_CUT_CLASS3
+		lockClass3Tasks.Lock()
 		if len(class3Tasks) == 0 {
 			class3Tasks = append(class3Tasks, task)
+			lockClass3Tasks.Unlock()
 			break
 		}
 
 		index := Sort(class3Tasks, task.TotalResources)
 		class3Tasks = InsertTask(class3Tasks, index, task)
+		lockClass3Tasks.Unlock()
 		break
 	case "4":
 		task.CutToReceive = MAX_CUT_CLASS4
+		lockClass4Tasks.Lock()
 		if len(class4Tasks) == 0 {
 			class4Tasks = append(class4Tasks, task)
+			lockClass4Tasks.Unlock()
 			break
 		}
 
 		index := Sort(class4Tasks, task.TotalResources)
 		class4Tasks = InsertTask(class4Tasks, index, task)
+		lockClass4Tasks.Unlock()
 		break
 	}
 }
@@ -382,7 +439,7 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/updatetask/{taskclass}&{newcpu}&{newmemory}&{taskid}&{cutreceived}", UpdateTask).Methods("GET")
 	router.HandleFunc("/task/class4", GetClass4Tasks).Methods("GET")
 
-	log.Fatal(http.ListenAndServe("192.168.1.154:1234", router))
+	log.Fatal(http.ListenAndServe(getIPAddress()+":1234", router))
 }
 
 func getIPAddress() (string) {
@@ -390,14 +447,11 @@ func getIPAddress() (string) {
     if err != nil {
         fmt.Println(err.Error())
     }
-    i := 0 
     for _, a := range addrs {
         if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
             if ipnet.IP.To4() != nil {
-                if i == 1 {
+		    fmt.Println(ipnet.IP.String())
                     return ipnet.IP.String()
-                }
-                i++
             }
         }
     }
