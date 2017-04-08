@@ -354,7 +354,7 @@ func UpdateList(taskID string) {
 		}
 	}
 
-	//this inserts in new list ordered
+	//this inserts in the list in its new position
 	index := ReverseSort(classTasks[taskClass], tasks[taskID].TotalResourcesUtilization)		
 	classTasks[taskClass] = InsertTask(classTasks[taskClass], index, tasks[taskID])
 
@@ -380,20 +380,28 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Updating cpu")
 
 	params := mux.Vars(req)
-//	taskID := params["taskid"]
+	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
-	
-	fmt.Println(cpuUpdate)
+
+    locks[tasks[taskID].TaskClass].Lock()
+    tasks[taskID].CPUUtilization = cpuUpdate
+    locks[tasks[taskID].TaskClass].Unlock()     
+
+    go UpdateTotalResourcesUtilization(cpuUpdate, memoryUpdate, 2, taskID) 	
 }
 //updates memory. message received from energy monitors. 
 func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Updating memory")
 
 	params := mux.Vars(req)
-//	taskID := params["taskid"]
+	taskID := params["taskid"]
 	memoryUpdate := params["newmemory"]
-	
-	fmt.Println(memoryUpdate)
+
+    locks[tasks[taskID].TaskClass].Lock()
+    tasks[taskID].MemoryUtilization = memoryUpdate  
+    locks[tasks[taskID].TaskClass].Unlock()     
+
+    go UpdateTotalResourcesUtilization(cpuUpdate, memoryUpdate, 3, taskID) 
 }
 
 
