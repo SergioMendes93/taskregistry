@@ -10,60 +10,59 @@ import (
 	"net"
 	"strconv"
 	"sync"
-
+	"math"
 //	 "github.com/docker/docker/client"
 
 
 )
 
 type Task struct {
-	TaskID     			string `json:"taskid,omitempty"`
-	TaskClass    		string `json:"taskclass,omitempty"`
-	Image				string `json:"image,omitempty"`
-	CPU           		string `json:"cpu,omitempty"`
-	TotalResources 		string `json:"totalresources,omitempty"` //total resouces allocated
-	Memory      		string `json:"memory,omitempty"`
-	CPUUtilization  	string `json:"cpuutilization,omitempty"`
-	MemoryUtilization 	string `json:"memoryutilization,omitempty"`
-	TaskType    		string `json:"tasktype,omitempty"`
-	CutReceived 		string `json:"cutreceived,omitempty"`
-	CutToReceive 		string `json:"cuttoreceive,omitempty"`
+	TaskID     					string `json:"taskid,omitempty"`
+	TaskClass    				string `json:"taskclass,omitempty"`
+	Image						string `json:"image,omitempty"`
+	CPU           				string `json:"cpu,omitempty"`
+	TotalResourcesUtilization 	string `json:"totalresources,omitempty"` //total resouces used max(cpu_utilization,memory utilization)
+	Memory      				string `json:"memory,omitempty"`
+	CPUUtilization  			string `json:"cpuutilization,omitempty"`
+	MemoryUtilization 			string `json:"memoryutilization,omitempty"`
+	TaskType    				string `json:"tasktype,omitempty"`
+	CutReceived 				string `json:"cutreceived,omitempty"`
+	CutToReceive 				string `json:"cuttoreceive,omitempty"`
 }
 
 var tasks map[string]*Task
-
-var class1Tasks []*Task
-var class2Tasks []*Task
-var class3Tasks []*Task
-var class4Tasks []*Task
-
+var classTasks map[string][]*Task
+ 
 var locks map[string]*sync.Mutex
 
 var MAX_CUT_CLASS2 = "0"
 var MAX_CUT_CLASS3 = "0"
 var MAX_CUT_CLASS4 = "0"
 
-//adapted binary search algorithm for inserting orderly based on total resources of a task
-func Sort(classList []*Task, searchValue string)(index int) {
+//adapted binary search algorithm for inserting ordered by descending order based on total resources of a task
+func ReverseSort(classList []*Task, searchValue string)(index int) {
 	listLength := len(classList)
     lowerBound := 0
-    upperBound := listLength- 1
+    upperBound := listLength - 1
+
+	if listLength == 0 { //if the list is empty there is no need for sorting
+		return 0
+	}
 
     for {
-        midPoint := (upperBound + lowerBound)/2
+        midPoint := (upperBound + lowerBound) / 2
 
-        fmt.Println(midPoint)
-        if lowerBound > upperBound && classList[midPoint].TotalResources > searchValue {
+        if lowerBound > upperBound && classList[midPoint].TotalResourcesUtilization < searchValue {
             return midPoint 
         } else if lowerBound > upperBound {
             return midPoint + 1
         }
 
-        if classList[midPoint].TotalResources < searchValue {
+        if classList[midPoint].TotalResourcesUtilization > searchValue {
             lowerBound = midPoint + 1
-        } else if classList[midPoint].TotalResources > searchValue {
+        } else if classList[midPoint].TotalResourcesUtilization < searchValue {
              upperBound = midPoint - 1
-        } else if classList[midPoint].TotalResources == searchValue {
+        } else if classList[midPoint].TotalResourcesUtilization == searchValue {
             return midPoint
       	}
 	}
@@ -71,54 +70,20 @@ func Sort(classList []*Task, searchValue string)(index int) {
 
 //function used to remove the task once it finished
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
-
 	params := mux.Vars(req)
 	taskID := params["taskid"]
+	taskClass := tasks[taskID].TaskClass
 
-	locks["1"].Lock()
-	
-	for i, task := range class1Tasks {
+	locks[taskClass].Lock()
+	for i, task := range classTasks[taskClass] {
 		if task.TaskID == taskID {
-			class1Tasks = append(class1Tasks[:i], class1Tasks[i+1:]...)
+			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
 			delete(tasks,taskID)
-			locks["1"].Unlock()
+			locks[taskClass].Unlock()
 			return
 		}
 	}
-	locks["1"].Unlock()
-
-	locks["2"].Lock()
-	for i, task := range class2Tasks {
-		if task.TaskID == taskID {
-			class2Tasks = append(class2Tasks[:i], class2Tasks[i+1:]...)
-			delete(tasks,taskID)
-			locks["2"].Unlock()
-			return
-		}
-	}
-	locks["2"].Unlock()
-
-	locks["3"].Lock()
-	for i, task := range class3Tasks {
-		if task.TaskID == taskID {
-			class3Tasks = append(class3Tasks[:i], class3Tasks[i+1:]...)
-			delete(tasks,taskID)
-			locks["3"].Unlock()
-			return
-		}
-	}			
-    locks["3"].Unlock()
-
-	locks["4"].Lock()
-	for i, task := range class4Tasks {
-		if task.TaskID == taskID {
-			class4Tasks = append(class4Tasks[:i], class4Tasks[i+1:]...)
-			delete(tasks,taskID)
-			locks["4"].Unlock()
-			return
-		}
-	}
-	locks["4"].Unlock()
+	locks[taskClass].Unlock()
 }
 
 //this function will be used to update task info, when a cut is performed on the task
@@ -141,7 +106,7 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 
 func GetClass4Tasks(w http.ResponseWriter, req *http.Request) {
 	locks["4"].Lock()
-	json.NewEncoder(w).Encode(class4Tasks)	
+	json.NewEncoder(w).Encode(classTasks["4"])	
 	locks["4"].Unlock()
 }
 
@@ -159,14 +124,14 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 		By sending requestClass we simulate if cutting whatever is on the host the request fits
 */
 	if requestClass == "1" {
-		listTasks = append(listTasks, tasksToBeCut(class2Tasks, requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(class3Tasks, requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(class4Tasks, requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["2"], requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 	} else if requestClass == "2" {
-		listTasks = append(listTasks, tasksToBeCut(class3Tasks, requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(class4Tasks, requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 	} else if requestClass == "3" {
-		listTasks = append(listTasks, tasksToBeCut(class4Tasks, requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 	}
 	
 	json.NewEncoder(w).Encode(listTasks)
@@ -251,28 +216,28 @@ func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 
 	if requestClass == "1" {
 		locks["2"].Lock()
-		listTasks = append(listTasks, class2Tasks...)
+		listTasks = append(listTasks, classTasks["2"]...)
 		locks["2"].Unlock()
 
 		locks["3"].Lock()
-		listTasks = append(listTasks, class3Tasks...)
+		listTasks = append(listTasks, classTasks["3"]...)
 		locks["3"].Unlock()
 
 		locks["4"].Lock()
-		listTasks = append(listTasks, class4Tasks...)
+		listTasks = append(listTasks, classTasks["4"]...)
 		locks["4"].Unlock()
 
 	} else if requestClass == "2" {
 		locks["3"].Lock()
-		listTasks = append(listTasks, class3Tasks...)
+		listTasks = append(listTasks, classTasks["3"]...)
 		locks["3"].Unlock()
 
 		locks["4"].Lock()
-		listTasks = append(listTasks, class4Tasks...)
+		listTasks = append(listTasks, classTasks["4"]...)
 		locks["4"].Unlock()
 	} else if requestClass == "3" {
 		locks["4"].Lock()
-		listTasks = append(listTasks, class4Tasks...)
+		listTasks = append(listTasks, classTasks["4"]...)
 		locks["4"].Unlock()
 	}
 	json.NewEncoder(w).Encode(listTasks)
@@ -292,31 +257,19 @@ func GetEqualHigherTasks(w http.ResponseWriter, req *http.Request) {
 */
 
 	if requestClass == "2" {
-		listTasks = append(listTasks, tasksToBeCut(class2Tasks,hostClass)...)
-		listTasks = append(listTasks, tasksToBeCut(class3Tasks,hostClass)...)
-		listTasks = append(listTasks, tasksToBeCut(class4Tasks,hostClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["2"],hostClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["3"],hostClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
 	} else if requestClass == "3" {
-		listTasks = append(listTasks, tasksToBeCut(class3Tasks,hostClass)...)
-		listTasks = append(listTasks, tasksToBeCut(class4Tasks,hostClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["3"],hostClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
 
 	} else if requestClass == "4" {
-		listTasks = append(listTasks, tasksToBeCut(class4Tasks,hostClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
 	}
 	json.NewEncoder(w).Encode(listTasks)
 }
 
-func InsertTask(classTask []*Task, index int, task []*Task) ([]*Task) {
-	tmp := make([]*Task, 0)
-	 if index >= len(classTask) { //end of list
-    	tmp = append(tmp, classTask...)
-       	tmp = append(tmp, task...)
-    } else { //middle or beginning of the list
-        tmp = append(tmp, classTask[:index]...)
-        tmp = append(tmp, task...)
-        tmp = append(tmp, classTask[index:]...)
-    }
-	return tmp
-}
 
 func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
@@ -326,70 +279,15 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 	newTask := make([]*Task,0)
 	
-	switch requestClass {
-	case "1":
-		locks["1"].Lock()
-		tasks[task.TaskID] = &task
-		newTask = append(newTask, tasks[task.TaskID])
+	locks[requestClass].Lock()
 
-		if len(class1Tasks) == 0 {			
-			class1Tasks = append(class1Tasks, newTask...)
-			locks["1"].Unlock()
-			break
-		}
-		index := Sort(class1Tasks, task.TotalResources)
-		class1Tasks = InsertTask(class1Tasks, index, newTask)
-		locks["1"].Lock()
-		break
-	case "2":
-		task.CutToReceive = MAX_CUT_CLASS2
-		locks["2"].Lock()
-		tasks[task.TaskID] = &task
-		newTask = append(newTask, tasks[task.TaskID])
-
-		if len(class2Tasks) == 0 {
-			class2Tasks = append(class2Tasks, newTask...)
-			locks["2"].Unlock()
-			break
-		}
-
-		index := Sort(class2Tasks, task.TotalResources)
-		class2Tasks = InsertTask(class2Tasks, index, newTask)
-		locks["2"].Unlock()
-		break
-	case "3":
-		task.CutToReceive = MAX_CUT_CLASS3
-		locks["3"].Lock()
-		tasks[task.TaskID] = &task
-		newTask = append(newTask, tasks[task.TaskID])
-
-		if len(class3Tasks) == 0 {
-			class3Tasks = append(class3Tasks, newTask...)
-			locks["3"].Unlock()
-			break
-		}
-
-		index := Sort(class3Tasks, task.TotalResources)
-		class3Tasks = InsertTask(class3Tasks, index, newTask)
-		locks["3"].Unlock()
-		break
-	case "4":
-		task.CutToReceive = MAX_CUT_CLASS4
-		locks["4"].Lock()
-		tasks[task.TaskID] = &task
-		newTask = append(newTask, tasks[task.TaskID])
-
-		if len(class4Tasks) == 0 {
-			class4Tasks = append(class4Tasks, newTask...)
-			locks["4"].Unlock()
-			break
-		}
-
-		index := Sort(class4Tasks, task.TotalResources)
-		class4Tasks = InsertTask(class4Tasks, index, newTask)
-		locks["4"].Unlock()
-		break
-	}
+    tasks[task.TaskID] = &task
+    newTask = append(newTask, tasks[task.TaskID])
+	//when a task is created we put at the end of the list since we don't know how much it will consume.
+	//then the monitor will send information about its resource utilization and it shall be updated on the list accordingly
+   	classTasks[requestClass] = append(classTasks[requestClass], newTask...)
+    
+	locks[requestClass].Unlock()
 }
 
 //updates both memory and cpu. message received from energy monitors. 
@@ -397,12 +295,84 @@ func UpdateBoth(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Updating both")
 
 	params := mux.Vars(req)
-//	taskID := params["taskid"]
+	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
 	memoryUpdate := params["newmemory"]
-	
-	fmt.Println(cpuUpdate)
-	fmt.Println(memoryUpdate)
+
+	locks[tasks[taskID].TaskClass].Lock()
+
+	tasks[taskID].CPUUtilization = cpuUpdate
+	tasks[taskID].MemoryUtilization = memoryUpdate	
+	locks[tasks[taskID].TaskClass].Unlock()		
+
+	go UpdateTotalResourcesUtilization(cpuUpdate, memoryUpdate, 1, taskID) 
+}
+
+//function whose job is to check whether the total resources should be updated or not.
+func UpdateTotalResourcesUtilization(cpu string, memory string, updateType int, taskID string){
+	locks[tasks[taskID].TaskClass].Lock()
+	previousTotalResourceUtilization := tasks[taskID].TotalResourcesUtilization
+	afterTotalResourceUtilization := ""
+
+	switch updateType {
+		case 1:
+			newCPU,_ := strconv.ParseFloat(cpu,64)
+			newMemory, _ := strconv.ParseFloat(memory, 64)
+			afterTotalResourceUtilization = strconv.FormatFloat(math.Max(newCPU, newMemory), 'f',-1, 64)
+			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
+			break
+		case 2:
+			newCPU,_ := strconv.ParseFloat(cpu,64)
+			memory,_ := strconv.ParseFloat(tasks[taskID].MemoryUtilization, 64)
+			afterTotalResourceUtilization = strconv.FormatFloat(math.Max(newCPU, memory), 'f',-1, 64)
+			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
+			break
+		case 3:
+			newMemory, _ := strconv.ParseFloat(memory, 64)
+			cpu,_ := strconv.ParseFloat(tasks[taskID].CPUUtilization, 64)
+			afterTotalResourceUtilization = strconv.FormatFloat(math.Max(cpu, newMemory), 'f',-1, 64)
+			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
+			break
+	}
+	locks[tasks[taskID].TaskClass].Unlock()
+
+	//now we must check if the host region should be updated or not
+	if afterTotalResourceUtilization != previousTotalResourceUtilization { 
+		go UpdateList(taskID) //we going to update the task position inside its list		
+	}
+}
+
+func UpdateList(taskID string) {
+	//this deletes
+	taskClass := tasks[taskID].TaskClass	
+
+	locks[taskClass].Lock()
+	for i := 0; i < len(classTasks[taskClass]); i++ {
+		if classTasks[taskClass][i].TaskID == taskID {
+			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...)
+			break
+		}
+	}
+
+	//this inserts in new list ordered
+	index := ReverseSort(classTasks[taskClass], tasks[taskID].TotalResourcesUtilization)		
+	classTasks[taskClass] = InsertTask(classTasks[taskClass], index, tasks[taskID])
+
+	locks[taskClass].Unlock()
+
+}
+
+func InsertTask(classTasks []*Task, index int, task *Task) ([]*Task) {
+	tmp := make([]*Task, 0)
+	if index >= len(classTasks) { //if this is true then we put at end
+		tmp = append(tmp, classTasks...)
+		tmp = append(tmp, task)
+	} else { //the code below is to insert into the index positin
+		tmp = append(tmp, classTasks[:index]...)
+		tmp = append(tmp, task)
+		tmp = append(tmp, classTasks[index:]...)
+	}
+	return tmp
 }
 
 //updates cpu. message received from energy monitors. 
@@ -430,6 +400,8 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 func main() {
 	tasks = make(map[string]*Task)
 	locks = make(map[string]*sync.Mutex)
+	classTasks = make(map[string][]*Task)
+
 	locks["1"] = &sync.Mutex{}
 	locks["2"] = &sync.Mutex{}
 	locks["3"] = &sync.Mutex{}
