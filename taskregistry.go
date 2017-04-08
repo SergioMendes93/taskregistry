@@ -10,6 +10,10 @@ import (
 	"net"
 	"strconv"
 	"sync"
+
+//	 "github.com/docker/docker/client"
+
+
 )
 
 type Task struct {
@@ -407,6 +411,41 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+//updates both memory and cpu. message received from energy monitors. 
+func UpdateBoth(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("Updating both")
+
+	params := mux.Vars(req)
+//	taskID := params["taskid"]
+	cpuUpdate := params["newcpu"]
+	memoryUpdate := params["newmemory"]
+	
+	fmt.Println(cpuUpdate)
+	fmt.Println(memoryUpdate)
+}
+
+//updates cpu. message received from energy monitors. 
+func UpdateCPU(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("Updating cpu")
+
+	params := mux.Vars(req)
+//	taskID := params["taskid"]
+	cpuUpdate := params["newcpu"]
+	
+	fmt.Println(cpuUpdate)
+}
+//updates memory. message received from energy monitors. 
+func UpdateMemory(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("Updating memory")
+
+	params := mux.Vars(req)
+//	taskID := params["taskid"]
+	memoryUpdate := params["newmemory"]
+	
+	fmt.Println(memoryUpdate)
+}
+
+
 func main() {
 	ServeSchedulerRequests()
 }
@@ -438,6 +477,9 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/remove/{taskid}", RemoveTask).Methods("GET")
 	router.HandleFunc("/task/updatetask/{taskclass}&{newcpu}&{newmemory}&{taskid}&{cutreceived}", UpdateTask).Methods("GET")
 	router.HandleFunc("/task/class4", GetClass4Tasks).Methods("GET")
+	router.HandleFunc("/task/updateboth/{taskid}&{newcpu}&{newmemory}", UpdateBoth).Methods("GET")
+	router.HandleFunc("/task/updateboth/{taskid}&{newcpu}", UpdateCPU).Methods("GET")
+	router.HandleFunc("/task/updateboth/{taskid}&{newmemory}", UpdateMemory).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(getIPAddress()+":1234", router))
 }
