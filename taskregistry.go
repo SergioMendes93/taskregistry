@@ -35,9 +35,9 @@ var classTasks map[string][]*Task
  
 var locks map[string]*sync.Mutex
 
-var MAX_CUT_CLASS2 = "0"
-var MAX_CUT_CLASS3 = "0"
-var MAX_CUT_CLASS4 = "0"
+var MAX_CUT_CLASS2 = "0.16"
+var MAX_CUT_CLASS3 = "0.33"
+var MAX_CUT_CLASS4 = "0.5"
 
 //adapted binary search algorithm for inserting ordered by descending order based on total resources of a task
 func ReverseSort(classList []*Task, searchValue string)(index int) {
@@ -99,12 +99,13 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 
 	tasks[taskID].CPU = newCPU
 	tasks[taskID].Memory = newMemory
-	tasks[taskID].CutReceived = cutReceived
+	tasks[taskID].CutReceived += cutReceived
 
 	locks[taskClass].Unlock()	
 }
 
 func GetClass4Tasks(w http.ResponseWriter, req *http.Request) {
+	fmt.Println("AQUI")
 	locks["4"].Lock()
 	json.NewEncoder(w).Encode(classTasks["4"])	
 	locks["4"].Unlock()
@@ -154,7 +155,7 @@ func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 func taskCanBeCut(task *Task, hostClass string) (bool, string) {
 	switch task.TaskClass {
 		case "2":
-			if task.CutReceived == MAX_CUT_CLASS2 {
+			if task.CutReceived >= MAX_CUT_CLASS2 {
 				return false, ""		//cannot cut this task, it is already expericing the maximum cut it can receive
 			} else if hostClass == "2" { //if the host is class 2 and the task is class 2, we cannot cut the task because it would suffer twice the penalty. Because it is already feeling the penalty of the overbooking
 				return false, ""
@@ -162,7 +163,7 @@ func taskCanBeCut(task *Task, hostClass string) (bool, string) {
 				return true, MAX_CUT_CLASS2
 			}		
 		case "3":
-			if task.CutReceived == MAX_CUT_CLASS3 {
+			if task.CutReceived >= MAX_CUT_CLASS3 {
 				return false, ""
 			} else if hostClass == "3" {
 				return false, ""
@@ -182,7 +183,7 @@ func taskCanBeCut(task *Task, hostClass string) (bool, string) {
 			}
 			
 		case "4":
-			if task.CutReceived == MAX_CUT_CLASS4 {
+			if task.CutReceived >= MAX_CUT_CLASS4 {
 				return false, ""
 			} else if hostClass == "4" {
 				return false, ""
@@ -285,6 +286,10 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
     newTask = append(newTask, tasks[task.TaskID])
 	//when a task is created we put at the end of the list since we don't know how much it will consume.
 	//then the monitor will send information about its resource utilization and it shall be updated on the list accordingly
+	fmt.Println("Task created")
+	fmt.Println("Received cut")
+	fmt.Println(task.CutReceived)
+
    	classTasks[requestClass] = append(classTasks[requestClass], newTask...)
     
 	locks[requestClass].Unlock()
@@ -387,7 +392,7 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
     tasks[taskID].CPUUtilization = cpuUpdate
     locks[tasks[taskID].TaskClass].Unlock()     
 
-    go UpdateTotalResourcesUtilization(cpuUpdate, memoryUpdate, 2, taskID) 	
+    go UpdateTotalResourcesUtilization(cpuUpdate, "0", 2, taskID) 	
 }
 //updates memory. message received from energy monitors. 
 func UpdateMemory(w http.ResponseWriter, req *http.Request) {
@@ -401,7 +406,7 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
     tasks[taskID].MemoryUtilization = memoryUpdate  
     locks[tasks[taskID].TaskClass].Unlock()     
 
-    go UpdateTotalResourcesUtilization(cpuUpdate, memoryUpdate, 3, taskID) 
+    go UpdateTotalResourcesUtilization("0", memoryUpdate, 3, taskID) 
 }
 
 
@@ -446,8 +451,8 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/updatetask/{taskclass}&{newcpu}&{newmemory}&{taskid}&{cutreceived}", UpdateTask).Methods("GET")
 	router.HandleFunc("/task/class4", GetClass4Tasks).Methods("GET")
 	router.HandleFunc("/task/updateboth/{taskid}&{newcpu}&{newmemory}", UpdateBoth).Methods("GET")
-	router.HandleFunc("/task/updateboth/{taskid}&{newcpu}", UpdateCPU).Methods("GET")
-	router.HandleFunc("/task/updateboth/{taskid}&{newmemory}", UpdateMemory).Methods("GET")
+	router.HandleFunc("/task/updatecpu/{taskid}&{newcpu}", UpdateCPU).Methods("GET")
+	router.HandleFunc("/task/updatememory/{taskid}&{newmemory}", UpdateMemory).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(getIPAddress()+":1234", router))
 }
