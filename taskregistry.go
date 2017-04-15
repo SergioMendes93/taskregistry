@@ -134,6 +134,8 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 	} else if requestClass == "3" {
 		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 	}
+	fmt.Println("Got tasks")
+	fmt.Println(listTasks)
 	
 	json.NewEncoder(w).Encode(listTasks)
 }
