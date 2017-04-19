@@ -30,6 +30,11 @@ type Task struct {
 	CutToReceive 				string `json:"cuttoreceive,omitempty"`
 }
 
+type TaskResources struct {
+	CPU 	float64 `json:"cpu,omitempty"`
+	Memory	float64 `json:"memory, omitempty"`
+}
+
 var tasks map[string]*Task
 var classTasks map[string][]*Task
  
@@ -75,6 +80,9 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	taskClass := tasks[taskID].TaskClass
 
 	locks[taskClass].Lock()
+	taskCPU, _ := strconv.ParseFloat(tasks[taskID].CPU,64)
+	taskMemory, _ := strconv.ParseFloat(tasks[taskID].Memory,64)
+
 	for i, task := range classTasks[taskClass] {
 		if task.TaskID == taskID {
 			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
@@ -84,6 +92,9 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	locks[taskClass].Unlock()
+
+	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
+	json.NewEncoder(w).Encode(taskResources)
 }
 
 //this function will be used to update task info, when a cut is performed on the task
@@ -382,6 +393,8 @@ func InsertTask(classTasks []*Task, index int, task *Task) ([]*Task) {
 	return tmp
 }
 
+
+
 //updates cpu. message received from energy monitors. 
 func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Updating cpu")
@@ -410,7 +423,6 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 
     go UpdateTotalResourcesUtilization("0", memoryUpdate, 3, taskID) 
 }
-
 
 func main() {
 	tasks = make(map[string]*Task)
@@ -455,7 +467,7 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/updateboth/{taskid}&{newcpu}&{newmemory}", UpdateBoth).Methods("GET")
 	router.HandleFunc("/task/updatecpu/{taskid}&{newcpu}", UpdateCPU).Methods("GET")
 	router.HandleFunc("/task/updatememory/{taskid}&{newmemory}", UpdateMemory).Methods("GET")
-
+	
 	log.Fatal(http.ListenAndServe(getIPAddress()+":1234", router))
 }
 
