@@ -76,6 +76,11 @@ func ReverseSort(classList []*Task, searchValue string)(index int) {
 //function used to remove the task once it finished
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
+
+	for _, task := range tasks {
+		fmt.Println(task)
+	}
+
 	taskID := params["taskid"]
 	taskClass := tasks[taskID].TaskClass
 
@@ -94,7 +99,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	locks[taskClass].Unlock()
 
 	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
-	fmt.Println("Eliminated")
 	json.NewEncoder(w).Encode(taskResources)
 }
 
