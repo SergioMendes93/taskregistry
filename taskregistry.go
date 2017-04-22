@@ -94,6 +94,7 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	locks[taskClass].Unlock()
 
 	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
+	fmt.Println("Eliminated")
 	json.NewEncoder(w).Encode(taskResources)
 }
 
