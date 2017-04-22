@@ -92,7 +92,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		if task.TaskID == taskID {
 			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
 			delete(tasks,taskID)
-			locks[taskClass].Unlock()
 			break
 		}
 	}
