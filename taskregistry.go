@@ -82,6 +82,8 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	}
 
 	taskID := params["taskid"]
+	fmt.Println("Task ID")
+	fmt.Println(taskID)
 	taskClass := tasks[taskID].TaskClass
 
 	locks[taskClass].Lock()
@@ -304,9 +306,6 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
     newTask = append(newTask, tasks[task.TaskID])
 	//when a task is created we put at the end of the list since we don't know how much it will consume.
 	//then the monitor will send information about its resource utilization and it shall be updated on the list accordingly
-	fmt.Println("Task created")
-	fmt.Println("Received cut")
-	fmt.Println(task.CutReceived)
 
    	classTasks[requestClass] = append(classTasks[requestClass], newTask...)
     
