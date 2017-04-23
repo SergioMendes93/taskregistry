@@ -12,8 +12,6 @@ import (
 	"sync"
 	"math"
 //	 "github.com/docker/docker/client"
-
-
 )
 
 type Task struct {
@@ -44,39 +42,38 @@ var MAX_CUT_CLASS2 = "0.16"
 var MAX_CUT_CLASS3 = "0.33"
 var MAX_CUT_CLASS4 = "0.5"
 
-//adapted binary search algorithm for inserting ordered by descending order based on total resources of a task
-func ReverseSort(classList []*Task, searchValue string)(index int) {
-	listLength := len(classList)
-    lowerBound := 0
-    upperBound := listLength - 1
+//adapted binary search algorithm for inserting ordered by ascendingo order based on total resources utilization of a task
+func Sort(classList []*Task, searchValue string) int {
+        listLength := len(classList)
+        lowerBound := 0
+        upperBound := listLength - 1
 
-	if listLength == 0 { //if the list is empty there is no need for sorting
-		return 0
-	}
-
-    for {
-        midPoint := (upperBound + lowerBound) / 2
-
-        if lowerBound > upperBound && classList[midPoint].TotalResourcesUtilization < searchValue {
-            return midPoint 
-        } else if lowerBound > upperBound {
-            return midPoint + 1
+        if listLength == 0 { //if the list is empty there is no need for sorting
+                return 0
         }
 
-        if classList[midPoint].TotalResourcesUtilization > searchValue {
-            lowerBound = midPoint + 1
-        } else if classList[midPoint].TotalResourcesUtilization < searchValue {
-             upperBound = midPoint - 1
-        } else if classList[midPoint].TotalResourcesUtilization == searchValue {
-            return midPoint
-      	}
-	}
-}
+        for {
+                midPoint := (upperBound + lowerBound) / 2
 
+                if lowerBound > upperBound && classList[midPoint].TotalResourcesUtilization > searchValue {
+                        return midPoint
+                } else if lowerBound > upperBound {
+                        return midPoint + 1
+                }
+
+                if classList[midPoint].TotalResourcesUtilization < searchValue {
+                        lowerBound = midPoint + 1
+                } else if classList[midPoint].TotalResourcesUtilization > searchValue {
+                        upperBound = midPoint - 1
+                } else if classList[midPoint].TotalResourcesUtilization == searchValue {
+                        return midPoint
+                }
+
+	 }
+}
 //function used to remove the task once it finished
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-	fmt.Println("Eliminating")
 
 	taskID := params["taskid"]
 	taskClass := tasks[taskID].TaskClass
@@ -85,8 +82,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	taskCPU, _ := strconv.ParseFloat(tasks[taskID].CPU,64)
 	taskMemory, _ := strconv.ParseFloat(tasks[taskID].Memory,64)
 
-	fmt.Println("Tasks before")
-	fmt.Println(tasks)
 	for i, task := range classTasks[taskClass] {
 		if task.TaskID == taskID {
 			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
@@ -94,9 +89,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 			break
 		}
 	}
-	fmt.Println("Tasks after")
-	fmt.Println(tasks)
-
 	locks[taskClass].Unlock()
 
 	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
@@ -376,7 +368,7 @@ func UpdateList(taskID string) {
 	}
 
 	//this inserts in the list in its new position
-	index := ReverseSort(classTasks[taskClass], tasks[taskID].TotalResourcesUtilization)		
+	index := Sort(classTasks[taskClass], tasks[taskID].TotalResourcesUtilization)		
 	classTasks[taskClass] = InsertTask(classTasks[taskClass], index, tasks[taskID])
 
 	locks[taskClass].Unlock()
