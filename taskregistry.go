@@ -85,6 +85,8 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	taskCPU, _ := strconv.ParseFloat(tasks[taskID].CPU,64)
 	taskMemory, _ := strconv.ParseFloat(tasks[taskID].Memory,64)
 
+	fmt.Println("Tasks before")
+	fmt.Println(tasks)
 	for i, task := range classTasks[taskClass] {
 		if task.TaskID == taskID {
 			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
@@ -92,6 +94,9 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 			break
 		}
 	}
+	fmt.Println("Tasks after")
+	fmt.Println(tasks)
+
 	locks[taskClass].Unlock()
 
 	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
