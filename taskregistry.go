@@ -73,13 +73,10 @@ func ReverseSort(classList []*Task, searchValue string)(index int) {
 	}
 }
 
-var counter = 0
 //function used to remove the task once it finished
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-
-	if counter == 0 {
-	counter = 1
+	fmt.Println("Eliminating")
 
 	taskID := params["taskid"]
 	taskClass := tasks[taskID].TaskClass
@@ -96,11 +93,9 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	locks[taskClass].Unlock()
-	fmt.Println("Eliminated")
 
 	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
 	json.NewEncoder(w).Encode(taskResources) 
-	}
 }
 
 //this function will be used to update task info, when a cut is performed on the task
