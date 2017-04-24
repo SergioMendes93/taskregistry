@@ -18,11 +18,11 @@ type Task struct {
 	TaskID     					string `json:"taskid,omitempty"`
 	TaskClass    				string `json:"taskclass,omitempty"`
 	Image						string `json:"image,omitempty"`
-	CPU           				string `json:"cpu,omitempty"`
-	TotalResourcesUtilization 	string `json:"totalresources,omitempty"` //total resouces used max(cpu_utilization,memory utilization)
-	Memory      				string `json:"memory,omitempty"`
-	CPUUtilization  			string `json:"cpuutilization,omitempty"`
-	MemoryUtilization 			string `json:"memoryutilization,omitempty"`
+	CPU           				float64 `json:"cpu,omitempty"`
+	TotalResourcesUtilization 	float64 `json:"totalresources,omitempty"` //total resouces used max(cpu_utilization,memory utilization)
+	Memory      				float64 `json:"memory,omitempty"`
+	CPUUtilization  			float64 `json:"cpuutilization,omitempty"`
+	MemoryUtilization 			float64 `json:"memoryutilization,omitempty"`
 	TaskType    				string `json:"tasktype,omitempty"`
 	CutReceived 				float64 `json:"cutreceived,omitempty"`
 	CutToReceive 				float64 `json:"cuttoreceive,omitempty"`
@@ -43,7 +43,7 @@ var MAX_CUT_CLASS3 = 0.33
 var MAX_CUT_CLASS4 = 0.5
 
 //adapted binary search algorithm for inserting ordered by ascendingo order based on total resources utilization of a task
-func Sort(classList []*Task, searchValue string) int {
+func Sort(classList []*Task, searchValue float64) int {
         listLength := len(classList)
         lowerBound := 0
         upperBound := listLength - 1
@@ -79,8 +79,8 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	taskClass := tasks[taskID].TaskClass
 
 	locks[taskClass].Lock()
-	taskCPU, _ := strconv.ParseFloat(tasks[taskID].CPU,64)
-	taskMemory, _ := strconv.ParseFloat(tasks[taskID].Memory,64)
+	taskCPU := tasks[taskID].CPU
+	taskMemory := tasks[taskID].Memory
 
 	for i, task := range classTasks[taskClass] {
 		if task.TaskID == taskID {
@@ -105,18 +105,28 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 	cutReceived := params["cutreceived"]
 
 	amountCutted, _ := strconv.ParseFloat(cutReceived, 64)
+	cpuToUpdate, _ := strconv.ParseFloat(newCPU, 64)
+	memoryToUpdate, _ := strconv.ParseFloat(newMemory,64)
 
 	locks[taskClass].Lock()
 
 	fmt.Println("Cut performed at " + taskID)
-	fmt.Print("Before CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cut received ")
+	fmt.Print("Before CUT cpu: ") 
+	fmt.Print(tasks[taskID].CPU)
+	fmt.Print( " memory: ")
+	fmt.Print(tasks[taskID].Memory) 
+	fmt.Print( " cut received ")
 	fmt.Println(tasks[taskID].CutReceived)
 
-	tasks[taskID].CPU = newCPU
-	tasks[taskID].Memory = newMemory
+	tasks[taskID].CPU = cpuToUpdate
+	tasks[taskID].Memory = memoryToUpdate
 	tasks[taskID].CutReceived += amountCutted
 
-	fmt.Print("After CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cutReceived ")
+	fmt.Print("After CUT cpu: " )
+	fmt.Print(tasks[taskID].CPU)
+	fmt.Print( " memory: ")
+	fmt.Print(tasks[taskID].Memory) 
+	fmt.Print( " cut received ")
 	fmt.Println(tasks[taskID].CutReceived)
 
 	locks[taskClass].Unlock()	
@@ -314,44 +324,43 @@ func UpdateBoth(w http.ResponseWriter, req *http.Request) {
 	cpuUpdate := params["newcpu"]
 	memoryUpdate := params["newmemory"]
 
+	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate, 64)
+	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate, 64)
+
 	locks[tasks[taskID].TaskClass].Lock()
 
-	tasks[taskID].CPUUtilization = cpuUpdate
-	tasks[taskID].MemoryUtilization = memoryUpdate	
+	tasks[taskID].CPUUtilization = cpuToUpdate
+	tasks[taskID].MemoryUtilization = memoryToUpdate	
 	locks[tasks[taskID].TaskClass].Unlock()		
 
-	go UpdateTotalResourcesUtilization(cpuUpdate, memoryUpdate, 1, taskID) 
+	go UpdateTotalResourcesUtilization(cpuToUpdate, memoryToUpdate, 1, taskID) 
 }
 
 //function whose job is to check whether the total resources should be updated or not.
-func UpdateTotalResourcesUtilization(cpu string, memory string, updateType int, taskID string){
+func UpdateTotalResourcesUtilization(cpu float64, memory float64, updateType int, taskID string){
 	locks[tasks[taskID].TaskClass].Lock()
 	previousTotalResourceUtilization := tasks[taskID].TotalResourcesUtilization
-	afterTotalResourceUtilization := ""
+	afterTotalResourceUtilization := 0.0
 
-	fmt.Println("Updating total resources utilization of " + taskID + " previous value " + previousTotalResourceUtilization)
+	fmt.Print("Updating total resources utilization of " + taskID + " previous value ") 
+	fmt.Println(previousTotalResourceUtilization)
 
 	switch updateType {
 		case 1:
-			newCPU,_ := strconv.ParseFloat(cpu,64)
-			newMemory, _ := strconv.ParseFloat(memory, 64)
-			afterTotalResourceUtilization = strconv.FormatFloat(math.Max(newCPU, newMemory), 'f',-1, 64)
+			afterTotalResourceUtilization = math.Max(cpu, memory)
 			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
 			break
 		case 2:
-			newCPU,_ := strconv.ParseFloat(cpu,64)
-			memory,_ := strconv.ParseFloat(tasks[taskID].MemoryUtilization, 64)
-			afterTotalResourceUtilization = strconv.FormatFloat(math.Max(newCPU, memory), 'f',-1, 64)
+			afterTotalResourceUtilization = math.Max(cpu, tasks[taskID].MemoryUtilization)
 			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
 			break
 		case 3:
-			newMemory, _ := strconv.ParseFloat(memory, 64)
-			cpu,_ := strconv.ParseFloat(tasks[taskID].CPUUtilization, 64)
-			afterTotalResourceUtilization = strconv.FormatFloat(math.Max(cpu, newMemory), 'f',-1, 64)
+			afterTotalResourceUtilization = math.Max(tasks[taskID].CPUUtilization, memory)
 			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
 			break
 	}
-	fmt.Println("Updating total resources utilization of " + taskID + " new value " + afterTotalResourceUtilization)
+	fmt.Print("Updating total resources utilization of " + taskID + " new value ")
+	fmt.Println(afterTotalResourceUtilization)
 
 	locks[tasks[taskID].TaskClass].Unlock()
 
@@ -417,11 +426,13 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
 
+	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate,64)
+
     locks[tasks[taskID].TaskClass].Lock()
-    tasks[taskID].CPUUtilization = cpuUpdate
+    tasks[taskID].CPUUtilization = cpuToUpdate
     locks[tasks[taskID].TaskClass].Unlock()     
 
-    go UpdateTotalResourcesUtilization(cpuUpdate, "0", 2, taskID) 	
+    go UpdateTotalResourcesUtilization(cpuToUpdate, 0.0, 2, taskID) 	
 }
 //updates memory. message received from energy monitors. 
 func UpdateMemory(w http.ResponseWriter, req *http.Request) {
@@ -431,11 +442,13 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 	taskID := params["taskid"]
 	memoryUpdate := params["newmemory"]
 
+	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate,64)
+
     locks[tasks[taskID].TaskClass].Lock()
-    tasks[taskID].MemoryUtilization = memoryUpdate  
+    tasks[taskID].MemoryUtilization = memoryToUpdate  
     locks[tasks[taskID].TaskClass].Unlock()     
 
-    go UpdateTotalResourcesUtilization("0", memoryUpdate, 3, taskID) 
+    go UpdateTotalResourcesUtilization(0.0, memoryToUpdate, 3, taskID) 
 }
 
 func main() {
