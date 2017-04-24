@@ -24,8 +24,8 @@ type Task struct {
 	CPUUtilization  			string `json:"cpuutilization,omitempty"`
 	MemoryUtilization 			string `json:"memoryutilization,omitempty"`
 	TaskType    				string `json:"tasktype,omitempty"`
-	CutReceived 				string `json:"cutreceived,omitempty"`
-	CutToReceive 				string `json:"cuttoreceive,omitempty"`
+	CutReceived 				float64 `json:"cutreceived,omitempty"`
+	CutToReceive 				float64 `json:"cuttoreceive,omitempty"`
 }
 
 type TaskResources struct {
@@ -38,9 +38,9 @@ var classTasks map[string][]*Task
  
 var locks map[string]*sync.Mutex
 
-var MAX_CUT_CLASS2 = "0.16"
-var MAX_CUT_CLASS3 = "0.33"
-var MAX_CUT_CLASS4 = "0.5"
+var MAX_CUT_CLASS2 = 0.16
+var MAX_CUT_CLASS3 = 0.33
+var MAX_CUT_CLASS4 = 0.5
 
 //adapted binary search algorithm for inserting ordered by ascendingo order based on total resources utilization of a task
 func Sort(classList []*Task, searchValue string) int {
@@ -104,16 +104,20 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 	newMemory := params["newmemory"]
 	cutReceived := params["cutreceived"]
 
+	amountCutted, _ := strconv.ParseFloat(cutReceived, 64)
+
 	locks[taskClass].Lock()
 
 	fmt.Println("Cut performed at " + taskID)
-	fmt.Print("Before CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cutReceived " + tasks[taskID].CutReceived)
+	fmt.Print("Before CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cut received ")
+	fmt.Println(tasks[taskID].CutReceived)
 
 	tasks[taskID].CPU = newCPU
 	tasks[taskID].Memory = newMemory
-	tasks[taskID].CutReceived += cutReceived
+	tasks[taskID].CutReceived += amountCutted
 
-	fmt.Print("After CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cutReceived " + tasks[taskID].CutReceived)
+	fmt.Print("After CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cutReceived ")
+	fmt.Println(tasks[taskID].CutReceived)
 
 	locks[taskClass].Unlock()	
 }
@@ -161,7 +165,8 @@ func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 		fmt.Println("Checking if task can be cut " + task.TaskID)
 		fmt.Println(task)
 		if taskCanBeCut {
-			fmt.Println("Added to cut list with cut to receive: " + cutToReceive)
+			fmt.Print("Added to cut list with cut to receive: ")
+			 fmt.Println(cutToReceive)
 			task.CutToReceive = cutToReceive //the request will receive a smaller cut than the maximum supported due to cut restrictions
 			returnList = append(returnList, task)
 		}
@@ -170,59 +175,49 @@ func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 }
 
 //this func returns true if the task can be cut, false otherwise
-func taskCanBeCut(task *Task, hostClass string) (bool, string) {
+func taskCanBeCut(task *Task, hostClass string) (bool, float64) {
 	switch task.TaskClass {
 		case "2":
 			if task.CutReceived >= MAX_CUT_CLASS2 {
-				return false, ""		//cannot cut this task, it is already expericing the maximum cut it can receive
+				return false, 0.0		//cannot cut this task, it is already expericing the maximum cut it can receive
 			} else if hostClass == "2" { //if the host is class 2 and the task is class 2, we cannot cut the task because it would suffer twice the penalty. Because it is already feeling the penalty of the overbooking
-				return false, ""
+				return false, 0.0
 			} else {
 				return true, MAX_CUT_CLASS2
 			}		
 		case "3":
 			if task.CutReceived >= MAX_CUT_CLASS3 {
-				return false, ""
+				return false, 0.0
 			} else if hostClass == "3" {
-				return false, ""
+				return false, 0.0
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
-				maxCutClass3, _ := strconv.ParseFloat(MAX_CUT_CLASS3, 64)
-				maxCutClass2, _ := strconv.ParseFloat(MAX_CUT_CLASS2, 64)
-				cutToReceive := maxCutClass3 - maxCutClass2
-				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
+				cutToReceive := MAX_CUT_CLASS3 - MAX_CUT_CLASS2
+				return true, cutToReceive
 			} else {
 				// Imaginando o caso em que está num host class 2 e este request sofreu 30% cut
 				//mas depois este host passa a class 1. nao posso fazer cut full. tenho que fazer até preencher  até ficar full,
 				//neste caso mais 20% ficando 50% cut
-				maxCutClass3, _ := strconv.ParseFloat(MAX_CUT_CLASS3, 64)
-				cutReceived, _ := strconv.ParseFloat(task.CutReceived,64)				
-				cutToReceive := maxCutClass3 - cutReceived
-				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
+				cutToReceive := MAX_CUT_CLASS3 - task.CutReceived
+				return true, cutToReceive
 			}
 			
 		case "4":
 			if task.CutReceived >= MAX_CUT_CLASS4 {
-				return false, ""
+				return false, 0.0
 			} else if hostClass == "4" {
-				return false, ""
+				return false, 0.0
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
-				maxCutClass4, _ := strconv.ParseFloat(MAX_CUT_CLASS4, 64)
-				maxCutClass2, _ := strconv.ParseFloat(MAX_CUT_CLASS2, 64)
-				cutToReceive := maxCutClass4 - maxCutClass2
-				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
+				cutToReceive := MAX_CUT_CLASS4 - MAX_CUT_CLASS2
+				return true, cutToReceive
 			} else if hostClass == "3" {
-				maxCutClass4, _ := strconv.ParseFloat(MAX_CUT_CLASS4, 64)
-				maxCutClass3, _ := strconv.ParseFloat(MAX_CUT_CLASS3, 64)
-				cutToReceive := maxCutClass4 - maxCutClass3
-				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
+				cutToReceive := MAX_CUT_CLASS4 - MAX_CUT_CLASS3
+				return true, cutToReceive
 			}else {
-				maxCutClass4, _ := strconv.ParseFloat(MAX_CUT_CLASS4, 64)
-				cutReceived, _ := strconv.ParseFloat(task.CutReceived, 64)
-				cutToReceive := maxCutClass4 - cutReceived
-				return true, strconv.FormatFloat(cutToReceive, 'f', -1, 64)
+				cutToReceive := MAX_CUT_CLASS4 - task.CutReceived
+				return true, cutToReceive
 			}
 	}
-	return false, ""
+	return false, 0.0
 }
 
 
