@@ -106,15 +106,19 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 
 	locks[taskClass].Lock()
 
+	fmt.Println("Cut performed at " + taskID)
+	fmt.Print("Before CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cutReceived " + tasks[taskID].CutReceived)
+
 	tasks[taskID].CPU = newCPU
 	tasks[taskID].Memory = newMemory
 	tasks[taskID].CutReceived += cutReceived
+
+	fmt.Print("After CUT cpu: " + tasks[taskID].CPU + " memory: " + tasks[taskID].Memory + " cutReceived " + tasks[taskID].CutReceived)
 
 	locks[taskClass].Unlock()	
 }
 
 func GetClass4Tasks(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("AQUI")
 	locks["4"].Lock()
 	json.NewEncoder(w).Encode(classTasks["4"])	
 	locks["4"].Unlock()
@@ -154,7 +158,10 @@ func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 	
 	for _, task := range listTasks {
 		taskCanBeCut, cutToReceive := taskCanBeCut(task, hostClass)
+		fmt.Println("Checking if task can be cut " + task.TaskID)
+		fmt.Println(task)
 		if taskCanBeCut {
+			fmt.Println("Added to cut list with cut to receive: " + cutToReceive)
 			task.CutToReceive = cutToReceive //the request will receive a smaller cut than the maximum supported due to cut restrictions
 			returnList = append(returnList, task)
 		}
@@ -327,6 +334,8 @@ func UpdateTotalResourcesUtilization(cpu string, memory string, updateType int, 
 	previousTotalResourceUtilization := tasks[taskID].TotalResourcesUtilization
 	afterTotalResourceUtilization := ""
 
+	fmt.Println("Updating total resources utilization of " + taskID + " previous value " + previousTotalResourceUtilization)
+
 	switch updateType {
 		case 1:
 			newCPU,_ := strconv.ParseFloat(cpu,64)
@@ -347,6 +356,8 @@ func UpdateTotalResourcesUtilization(cpu string, memory string, updateType int, 
 			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
 			break
 	}
+	fmt.Println("Updating total resources utilization of " + taskID + " new value " + afterTotalResourceUtilization)
+
 	locks[tasks[taskID].TaskClass].Unlock()
 
 	//now we must check if the host region should be updated or not
@@ -360,16 +371,29 @@ func UpdateList(taskID string) {
 	taskClass := tasks[taskID].TaskClass	
 
 	locks[taskClass].Lock()
+	fmt.Println("Updating task list, list elements: " + taskID)
+
 	for i := 0; i < len(classTasks[taskClass]); i++ {
+		fmt.Println(classTasks[taskClass][i])
 		if classTasks[taskClass][i].TaskID == taskID {
 			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...)
 			break
 		}
 	}
 
+	fmt.Println("before new list ")
+	for i := 0; i < len(classTasks[taskClass]); i++ {
+		fmt.Println(classTasks[taskClass][i])
+	}
+
 	//this inserts in the list in its new position
 	index := Sort(classTasks[taskClass], tasks[taskID].TotalResourcesUtilization)		
 	classTasks[taskClass] = InsertTask(classTasks[taskClass], index, tasks[taskID])
+
+	fmt.Println("after new list ")
+	for i := 0; i < len(classTasks[taskClass]); i++ {
+		fmt.Println(classTasks[taskClass][i])
+	}
 
 	locks[taskClass].Unlock()
 
