@@ -76,6 +76,7 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 
 	taskID := params["taskid"]
+	fmt.Println("Removing task " + taskID)
 	taskClass := tasks[taskID].TaskClass
 
 	locks[taskClass].Lock()
