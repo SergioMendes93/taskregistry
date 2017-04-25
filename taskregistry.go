@@ -77,23 +77,30 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 
 	taskID := params["taskid"]
 	fmt.Println("Removing task " + taskID)
-	taskClass := tasks[taskID].TaskClass
+		
+	//this checks if the task still exists. This is required because there are two ways a task can be deleted. Either through a kill or the task finished
+	//If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
+	if task, ok  := tasks[taskID]; ok { 
+		taskClass := task.TaskClass
 
-	locks[taskClass].Lock()
-	taskCPU := tasks[taskID].CPU
-	taskMemory := tasks[taskID].Memory
+		locks[taskClass].Lock()
 
-	for i, task := range classTasks[taskClass] {
-		if task.TaskID == taskID {
-			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
-			delete(tasks,taskID)
-			break
+		for i, task := range classTasks[taskClass] {
+			if task.TaskID == taskID {
+				classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
+				delete(tasks,taskID)
+				break
+			}
 		}
+		locks[taskClass].Unlock()
+		taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory}
+		json.NewEncoder(w).Encode(taskResources) 
+	}else {
+		fmt.Println("THIS TASK WAS ALREADY DELETED")
+		taskResources := &TaskResources{CPU : -1.0, Memory: -1.0}
+		json.NewEncoder(w).Encode(taskResources) 
 	}
-	locks[taskClass].Unlock()
 
-	taskResources := &TaskResources{CPU : taskCPU, Memory: taskMemory}
-	json.NewEncoder(w).Encode(taskResources) 
 }
 
 //this function will be used to update task info, when a cut is performed on the task
@@ -265,6 +272,8 @@ func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 		listTasks = append(listTasks, classTasks["4"]...)
 		locks["4"].Unlock()
 	}
+	fmt.Println("Sending to scheduler these tasks to be killed: ")
+	fmt.Println(listTasks)
 	json.NewEncoder(w).Encode(listTasks)
 }
 
