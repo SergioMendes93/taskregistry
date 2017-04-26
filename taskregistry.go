@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"math"
+	"os/exec"
 //	 "github.com/docker/docker/client"
 )
 
@@ -95,6 +96,15 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		locks[taskClass].Unlock()
 		taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory}
 		json.NewEncoder(w).Encode(taskResources) 
+	
+		//removing container, due to a docker bug, the container is not deleted after finishing
+		cmd := "docker"
+	    	args := []string{"rm", taskID, "-f"}
+
+    		if err := exec.Command(cmd, args...).Run(); err != nil {
+        		fmt.Println("Error using docker run at removing exited container")
+        		fmt.Println(err)
+		}
 	}else {
 		fmt.Println("THIS TASK WAS ALREADY DELETED")
 		taskResources := &TaskResources{CPU : -1.0, Memory: -1.0}
