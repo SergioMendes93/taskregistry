@@ -99,7 +99,7 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 
 		//first we kill the task then we remove the container
 		cmd1 := "docker"
-		args1 := []string{"-H","kill", taskID}
+		args1 := []string{"kill", taskID}
 
 		if err1 := exec.Command(cmd1, args1...).Run(); err1 != nil {
 			fmt.Println("Error using docker run at kill tasks")
