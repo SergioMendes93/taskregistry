@@ -13,6 +13,8 @@ import (
 	"math"
 	"os/exec"
 //	 "github.com/docker/docker/client"
+
+	"bytes"
 )
 
 type Task struct {
@@ -98,12 +100,22 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		json.NewEncoder(w).Encode(taskResources) 
 
 		//first we kill the task then we remove the container
-		cmd1 := "docker"
+		/*cmd1 := "docker"
 		args1 := []string{"kill", taskID}
 
 		if err1 := exec.Command(cmd1, args1...).Run(); err1 != nil {
 			fmt.Println("Error using docker run at kill tasks")
 			fmt.Println(err1)
+		}*/
+		cmd1 := exec.Command("docker","kill",taskID)
+
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd1.Stdout = &out
+		cmd1.Stderr = &stderr
+		err1 := cmd1.Run()
+		if err1 != nil {
+    		fmt.Println(fmt.Sprint(err1) + ": " + stderr.String())
 		}
 	
 		//removing container, due to a docker bug, the container is not deleted after finishing
