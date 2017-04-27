@@ -96,6 +96,15 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		locks[taskClass].Unlock()
 		taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory}
 		json.NewEncoder(w).Encode(taskResources) 
+
+		//first we kill the task then we remove the container
+		cmd1 := "docker"
+		args1 := []string{"-H","kill", taskID}
+
+		if err1 := exec.Command(cmd1, args1...).Run(); err1 != nil {
+			fmt.Println("Error using docker run at kill tasks")
+			fmt.Println(err1)
+		}
 	
 		//removing container, due to a docker bug, the container is not deleted after finishing
 		cmd := "docker"
