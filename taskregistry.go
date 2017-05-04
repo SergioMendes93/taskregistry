@@ -119,13 +119,15 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		}
 	
 		//removing container, due to a docker bug, the container is not deleted after finishing
-		cmd := "docker"
-	    	args := []string{"rm", taskID, "-f"}
+		cmd := exec.Command("docker","rm", taskID, "-f")
+        var out2, stderr2 bytes.Buffer
+        cmd.Stdout = &out2
+        cmd.Stderr = &stderr2
 
-    		if err := exec.Command(cmd, args...).Run(); err != nil {
-        		fmt.Println("Error using docker run at removing exited container")
-        		fmt.Println(err)
-		}
+        if err2 := cmd.Run(); err2 != nil {
+                fmt.Println("Error using docker run at removing exited container")
+                fmt.Println(fmt.Sprint(err2) + ": " + stderr2.String())
+        }
 	}else {
 		fmt.Println("THIS TASK WAS ALREADY DELETED")
 		taskResources := &TaskResources{CPU : -1.0, Memory: -1.0}
