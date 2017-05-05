@@ -193,12 +193,12 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 		By sending requestClass we simulate if cutting whatever is on the host the request fits
 */
 	if requestClass == "1" {
+		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
 		listTasks = append(listTasks, tasksToBeCut(classTasks["2"], requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 	} else if requestClass == "2" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
 		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
+		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
 	} else if requestClass == "3" {
 		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 	}
@@ -280,26 +280,26 @@ func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 	listTasks := make([]*Task, 0)
 
 	if requestClass == "1" {
+		locks["4"].Lock()
+		listTasks = append(listTasks, classTasks["4"]...)
+		locks["4"].Unlock()
+
+		locks["3"].Lock()
+		listTasks = append(listTasks, classTasks["3"]...)
+		locks["3"].Unlock()
+
 		locks["2"].Lock()
 		listTasks = append(listTasks, classTasks["2"]...)
 		locks["2"].Unlock()
 
-		locks["3"].Lock()
-		listTasks = append(listTasks, classTasks["3"]...)
-		locks["3"].Unlock()
-
-		locks["4"].Lock()
-		listTasks = append(listTasks, classTasks["4"]...)
-		locks["4"].Unlock()
-
 	} else if requestClass == "2" {
-		locks["3"].Lock()
-		listTasks = append(listTasks, classTasks["3"]...)
-		locks["3"].Unlock()
-
 		locks["4"].Lock()
 		listTasks = append(listTasks, classTasks["4"]...)
 		locks["4"].Unlock()
+
+		locks["3"].Lock()
+		listTasks = append(listTasks, classTasks["3"]...)
+		locks["3"].Unlock()
 	} else if requestClass == "3" {
 		locks["4"].Lock()
 		listTasks = append(listTasks, classTasks["4"]...)
