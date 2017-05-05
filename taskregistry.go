@@ -352,6 +352,7 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
     newTask = append(newTask, tasks[task.TaskID])
 	//when a task is created we put at the end of the list since we don't know how much it will consume.
 	//then the monitor will send information about its resource utilization and it shall be updated on the list accordingly
+	fmt.Println("Task created with ID " + task.TaskID)
 
    	classTasks[requestClass] = append(classTasks[requestClass], newTask...)
     
@@ -360,12 +361,14 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 //updates both memory and cpu. message received from energy monitors. 
 func UpdateBoth(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Updating both")
 
 	params := mux.Vars(req)
 	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
 	memoryUpdate := params["newmemory"]
+
+	fmt.Println("Updating both: " + taskID)
+
 
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate, 64)
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate, 64)
@@ -463,11 +466,13 @@ func InsertTask(classTasks []*Task, index int, task *Task) ([]*Task) {
 
 //updates cpu. message received from energy monitors. 
 func UpdateCPU(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Updating cpu")
 
 	params := mux.Vars(req)
 	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
+
+	fmt.Println("Updating cpu: " + taskID)
+
 
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate,64)
 
@@ -479,11 +484,13 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 }
 //updates memory. message received from energy monitors. 
 func UpdateMemory(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Updating memory")
 
 	params := mux.Vars(req)
 	taskID := params["taskid"]
 	memoryUpdate := params["newmemory"]
+
+	fmt.Println("Updating memory: " + taskID)
+
 
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate,64)
 
