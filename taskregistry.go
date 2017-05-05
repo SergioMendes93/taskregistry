@@ -1,4 +1,5 @@
 
+
 package main
 
 import (
@@ -369,6 +370,12 @@ func UpdateBoth(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("Updating both: " + taskID)
 
+	//task no longer exists
+	if _, ok := tasks[taskID]; !ok {
+		fmt.Println("Task no longer exists " + taskID)
+		return
+	}
+
 
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate, 64)
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate, 64)
@@ -473,6 +480,11 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("Updating cpu: " + taskID)
 
+	//task no longer exists
+	if _, ok := tasks[taskID]; !ok {
+		fmt.Println("Task no longer exists " + taskID)
+		return
+	}
 
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate,64)
 
@@ -491,6 +503,11 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 
 	fmt.Println("Updating memory: " + taskID)
 
+	//task no longer exists
+	if _, ok := tasks[taskID]; !ok {
+		fmt.Println("Task no longer exists " + taskID)
+		return
+	}
 
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate,64)
 
