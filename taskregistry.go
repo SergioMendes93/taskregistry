@@ -33,8 +33,11 @@ type Task struct {
 }
 
 type TaskResources struct {
-	CPU 	float64 `json:"cpu,omitempty"`
-	Memory	float64 `json:"memory, omitempty"`
+    CPU             float64     `json:"cpu, omitempty"`
+    Memory          float64     `json:"memory,omitempty"`
+    PreviousClass   string      `json:"previousclass,omitempty"`
+    NewClass        string      `json:"newclass,omitempty"`
+    Update          bool        `json:"update,omitempty"`
 }
 
 var tasks map[string]*Task
@@ -96,22 +99,30 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 				break
 			}
 		}
+		if len(classTasks[taskClass]) == 0 && taskClass != "4"{
+			newClass := "0"
+			
+			if len(classTasks["2"]) > 0 {
+				newClass = "2"
+
+			} else if len(classTasks["3"]) > 0 {
+				newClass = "3"
+			} else {
+				newClass = "4"
+			}	
+			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, PreviousClass: taskClass , NewClass: newClass, Update: true}
+			json.NewEncoder(w).Encode(taskResources) 
+
+		}else {
+			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, Update: false}
+			json.NewEncoder(w).Encode(taskResources) 
+		}
+
 		locks[taskClass].Unlock()
-		taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory}
-		json.NewEncoder(w).Encode(taskResources) 
 
-		//first we kill the task then we remove the container
-		/*cmd1 := "docker"
-		args1 := []string{"kill", taskID}
-
-		if err1 := exec.Command(cmd1, args1...).Run(); err1 != nil {
-			fmt.Println("Error using docker run at kill tasks")
-			fmt.Println(err1)
-		}*/
 		cmd1 := exec.Command("docker","kill",taskID)
 
-		var out bytes.Buffer
-		var stderr bytes.Buffer
+		var out,stderr bytes.Buffer
 		cmd1.Stdout = &out
 		cmd1.Stderr = &stderr
 		err1 := cmd1.Run()
