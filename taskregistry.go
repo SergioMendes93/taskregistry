@@ -394,18 +394,22 @@ func UpdateBoth(w http.ResponseWriter, req *http.Request) {
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate, 64)
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate, 64)
 
-	locks[tasks[taskID].TaskClass].Lock()
+	taskClass := tasks[taskID].TaskClass
+
+	locks[taskClass].Lock()
 
 	tasks[taskID].CPUUtilization = cpuToUpdate
 	tasks[taskID].MemoryUtilization = memoryToUpdate	
-	locks[tasks[taskID].TaskClass].Unlock()		
+	locks[taskClass].Unlock()		
 
 	go UpdateTotalResourcesUtilization(cpuToUpdate, memoryToUpdate, 1, taskID) 
 }
 
 //function whose job is to check whether the total resources should be updated or not.
 func UpdateTotalResourcesUtilization(cpu float64, memory float64, updateType int, taskID string){
-	locks[tasks[taskID].TaskClass].Lock()
+	taskClass := tasks[taskID].TaskClass
+
+	locks[taskClass].Lock()
 	previousTotalResourceUtilization := tasks[taskID].TotalResourcesUtilization
 	afterTotalResourceUtilization := 0.0
 
@@ -429,7 +433,7 @@ func UpdateTotalResourcesUtilization(cpu float64, memory float64, updateType int
 	fmt.Print("Updating total resources utilization of " + taskID + " new value ")
 	fmt.Println(afterTotalResourceUtilization)
 
-	locks[tasks[taskID].TaskClass].Unlock()
+	locks[taskClass].Unlock()
 
 	//now we must check if the host region should be updated or not
 	if afterTotalResourceUtilization != previousTotalResourceUtilization { 
@@ -502,9 +506,11 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate,64)
 
-    locks[tasks[taskID].TaskClass].Lock()
+	taskClass := tasks[taskID].TaskClass	
+
+    locks[taskClass].Lock()
     tasks[taskID].CPUUtilization = cpuToUpdate
-    locks[tasks[taskID].TaskClass].Unlock()     
+    locks[taskClass].Unlock()     
 
     go UpdateTotalResourcesUtilization(cpuToUpdate, 0.0, 2, taskID) 	
 }
@@ -525,9 +531,11 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate,64)
 
-    locks[tasks[taskID].TaskClass].Lock()
+	taskClass := tasks[taskID].TaskClass
+
+    locks[taskClass].Lock()
     tasks[taskID].MemoryUtilization = memoryToUpdate  
-    locks[tasks[taskID].TaskClass].Unlock()     
+    locks[taskClass].Unlock()     
 
     go UpdateTotalResourcesUtilization(0.0, memoryToUpdate, 3, taskID) 
 }
