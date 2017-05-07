@@ -30,6 +30,9 @@ type Task struct {
 	TaskType    				string `json:"tasktype,omitempty"`
 	CutReceived 				float64 `json:"cutreceived,omitempty"`
 	CutToReceive 				float64 `json:"cuttoreceive,omitempty"`
+	OriginalCPU					float64 `json:"originalcpu,omitempty"`
+	OriginalMemory				float64	`json:"originalmemory,omitempty"`
+
 }
 
 type TaskResources struct {
