@@ -22,22 +22,22 @@ type Task struct {
 	TaskID     					string `json:"taskid,omitempty"`
 	TaskClass    				string `json:"taskclass,omitempty"`
 	Image						string `json:"image,omitempty"`
-	CPU           				float64 `json:"cpu,omitempty"`
+	CPU           				int64  `json:"cpu,omitempty"`
 	TotalResourcesUtilization 	float64 `json:"totalresources,omitempty"` //total resouces used max(cpu_utilization,memory utilization)
-	Memory      				float64 `json:"memory,omitempty"`
+	Memory      				int64 `json:"memory,omitempty"`
 	CPUUtilization  			float64 `json:"cpuutilization,omitempty"`
 	MemoryUtilization 			float64 `json:"memoryutilization,omitempty"`
 	TaskType    				string `json:"tasktype,omitempty"`
 	CutReceived 				float64 `json:"cutreceived,omitempty"`
 	CutToReceive 				float64 `json:"cuttoreceive,omitempty"`
-	OriginalCPU					float64 `json:"originalcpu,omitempty"`
-	OriginalMemory				float64	`json:"originalmemory,omitempty"`
+	OriginalCPU					int64 `json:"originalcpu,omitempty"`
+	OriginalMemory				int64	`json:"originalmemory,omitempty"`
 
 }
 
 type TaskResources struct {
-    CPU             float64     `json:"cpu, omitempty"`
-    Memory          float64     `json:"memory,omitempty"`
+    CPU             int64     `json:"cpu, omitempty"`
+    Memory          int64     `json:"memory,omitempty"`
     PreviousClass   string      `json:"previousclass,omitempty"`
     NewClass        string      `json:"newclass,omitempty"`
     Update          bool        `json:"update,omitempty"`
@@ -161,8 +161,8 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 	cutReceived := params["cutreceived"]
 
 	amountCutted, _ := strconv.ParseFloat(cutReceived, 64)
-	cpuToUpdate, _ := strconv.ParseFloat(newCPU, 64)
-	memoryToUpdate, _ := strconv.ParseFloat(newMemory,64)
+	cpuToUpdate, _ := strconv.ParseInt(newCPU,10, 64)
+	memoryToUpdate, _ := strconv.ParseInt(newMemory,10,64)
 
 	locks[taskClass].Lock()
 
