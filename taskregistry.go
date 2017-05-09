@@ -36,17 +36,20 @@ type Task struct {
 }
 
 type TaskResources struct {
-    CPU             int64     `json:"cpu, omitempty"`
-    Memory          int64     `json:"memory,omitempty"`
-    PreviousClass   string    `json:"previousclass,omitempty"`
-    NewClass        string    `json:"newclass,omitempty"`
-    Update          bool      `json:"update,omitempty"`
+    	CPU             int64     `json:"cpu, omitempty"`
+    	Memory          int64     `json:"memory,omitempty"`
+    	PreviousClass   string    `json:"previousclass,omitempty"`
+    	NewClass        string    `json:"newclass,omitempty"`
+    	Update          bool      `json:"update,omitempty"`
+	IP		string	  `json:"ip,omitempty"`
 }
 
 var tasks map[string]*Task
 var classTasks map[string][]*Task
  
 var locks map[string]*sync.Mutex
+
+var ip string 
 
 var MAX_CUT_CLASS2 = 0.16
 var MAX_CUT_CLASS3 = 0.33
@@ -114,10 +117,10 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 			} else {
 				newClass = "4"
 			}
-			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, PreviousClass: taskClass , NewClass: newClass, Update: true}
+			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, PreviousClass: taskClass , IP: ip, NewClass: newClass, Update: true}
 			go sendInfoHostRegistry(taskResources)	
 		}else {
-			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, Update: false}		
+			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, IP: ip, Update: false}		
 			go sendInfoHostRegistry(taskResources)	
 		}
 
@@ -559,6 +562,8 @@ func main() {
 	tasks = make(map[string]*Task)
 	locks = make(map[string]*sync.Mutex)
 	classTasks = make(map[string][]*Task)
+	
+	ip = getIPAddress()
 
 	locks["1"] = &sync.Mutex{}
 	locks["2"] = &sync.Mutex{}
@@ -599,7 +604,7 @@ func ServeSchedulerRequests() {
 	router.HandleFunc("/task/updatecpu/{taskid}&{newcpu}", UpdateCPU).Methods("GET")
 	router.HandleFunc("/task/updatememory/{taskid}&{newmemory}", UpdateMemory).Methods("GET")
 	
-	log.Fatal(http.ListenAndServe(getIPAddress()+":1234", router))
+	log.Fatal(http.ListenAndServe(ip+":1234", router))
 }
 
 func getIPAddress() (string) {
