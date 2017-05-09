@@ -19,28 +19,28 @@ import (
 )
 
 type Task struct {
-	TaskID     					string `json:"taskid,omitempty"`
-	TaskClass    				string `json:"taskclass,omitempty"`
-	Image						string `json:"image,omitempty"`
-	CPU           				int64  `json:"cpu,omitempty"`
+	TaskID     			string  `json:"taskid,omitempty"`
+	TaskClass    			string  `json:"taskclass,omitempty"`
+	Image				string  `json:"image,omitempty"`
+	CPU           			int64   `json:"cpu,omitempty"`
 	TotalResourcesUtilization 	float64 `json:"totalresources,omitempty"` //total resouces used max(cpu_utilization,memory utilization)
-	Memory      				int64 `json:"memory,omitempty"`
-	CPUUtilization  			float64 `json:"cpuutilization,omitempty"`
-	MemoryUtilization 			float64 `json:"memoryutilization,omitempty"`
-	TaskType    				string `json:"tasktype,omitempty"`
-	CutReceived 				float64 `json:"cutreceived,omitempty"`
-	CutToReceive 				float64 `json:"cuttoreceive,omitempty"`
-	OriginalCPU					int64 `json:"originalcpu,omitempty"`
-	OriginalMemory				int64	`json:"originalmemory,omitempty"`
+	Memory      			int64   `json:"memory,omitempty"`
+	CPUUtilization  		float64 `json:"cpuutilization,omitempty"`
+	MemoryUtilization 		float64 `json:"memoryutilization,omitempty"`
+	TaskType    			string  `json:"tasktype,omitempty"`
+	CutReceived 			float64 `json:"cutreceived,omitempty"`
+	CutToReceive 			float64 `json:"cuttoreceive,omitempty"`
+	OriginalCPU			int64   `json:"originalcpu,omitempty"`
+	OriginalMemory			int64	`json:"originalmemory,omitempty"`
 
 }
 
 type TaskResources struct {
     CPU             int64     `json:"cpu, omitempty"`
     Memory          int64     `json:"memory,omitempty"`
-    PreviousClass   string      `json:"previousclass,omitempty"`
-    NewClass        string      `json:"newclass,omitempty"`
-    Update          bool        `json:"update,omitempty"`
+    PreviousClass   string    `json:"previousclass,omitempty"`
+    NewClass        string    `json:"newclass,omitempty"`
+    Update          bool      `json:"update,omitempty"`
 }
 
 var tasks map[string]*Task
@@ -207,16 +207,22 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 		3 (HostClass) >= 2 (requestClass) if this request is scheduled to this host this host class will become 2 instead of 3.
 		By sending requestClass we simulate if cutting whatever is on the host the request fits
 */
-	if requestClass == "1" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["2"], requestClass)...)
-	} else if requestClass == "2" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
-	} else if requestClass == "3" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
+
+	switch requestClass {
+		case "1":
+			listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
+			listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
+			listTasks = append(listTasks, tasksToBeCut(classTasks["2"], requestClass)...)
+			break
+		case "2":
+			listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
+			listTasks = append(listTasks, tasksToBeCut(classTasks["3"], requestClass)...)
+			break
+		case "3":
+			listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
+			break
 	}
+	
 	fmt.Println("Got tasks")
 	fmt.Println(listTasks)
 	
@@ -244,17 +250,14 @@ func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 func taskCanBeCut(task *Task, hostClass string) (bool, float64) {
 	switch task.TaskClass {
 		case "2":
-			if task.CutReceived >= MAX_CUT_CLASS2 {
-				return false, 0.0		//cannot cut this task, it is already expericing the maximum cut it can receive
-			} else if hostClass == "2" { //if the host is class 2 and the task is class 2, we cannot cut the task because it would suffer twice the penalty. Because it is already feeling the penalty of the overbooking
-				return false, 0.0
+ //if the host is class 2 and the task is class 2, we cannot cut the task because it would suffer twice the penalty. Because it is already feeling the penalty of the overbooking
+			if hostClass == "2" || task.CutReceived >= MAX_CUT_CLASS2 {
+				return false, 0.0		// OR cannot cut this task, it is already expericing the maximum cut it can receive
 			} else {
 				return true, MAX_CUT_CLASS2
 			}		
 		case "3":
-			if task.CutReceived >= MAX_CUT_CLASS3 {
-				return false, 0.0
-			} else if hostClass == "3" {
+			if hostClass == "3" || task.CutReceived >= MAX_CUT_CLASS3 {
 				return false, 0.0
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
 				cutToReceive := MAX_CUT_CLASS3 - MAX_CUT_CLASS2
@@ -265,12 +268,9 @@ func taskCanBeCut(task *Task, hostClass string) (bool, float64) {
 				//neste caso mais 20% ficando 50% cut
 				cutToReceive := MAX_CUT_CLASS3 - task.CutReceived
 				return true, cutToReceive
-			}
-			
+			}			
 		case "4":
-			if task.CutReceived >= MAX_CUT_CLASS4 {
-				return false, 0.0
-			} else if hostClass == "4" {
+			if hostClass == "4" || task.CutReceived >= MAX_CUT_CLASS4 {
 				return false, 0.0
 			} else if hostClass == "2" { //it must received a smaller cut for the reasons mentioned in the report
 				cutToReceive := MAX_CUT_CLASS4 - MAX_CUT_CLASS2
@@ -337,17 +337,19 @@ func GetEqualHigherTasks(w http.ResponseWriter, req *http.Request) {
 	Here we send hostClass instead of requestClass because we are in the case of hostClass < requestClass so the class of the host 
 	after the request is assigned to this host will remain the same (the value of hostClass)
 */
-
-	if requestClass == "2" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["2"],hostClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["3"],hostClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
-	} else if requestClass == "3" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["3"],hostClass)...)
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
-
-	} else if requestClass == "4" {
-		listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
+	switch requestClass {
+		case "2":
+			listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
+			listTasks = append(listTasks, tasksToBeCut(classTasks["3"],hostClass)...)
+			listTasks = append(listTasks, tasksToBeCut(classTasks["2"],hostClass)...)
+			break
+		case "3":
+			listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
+			listTasks = append(listTasks, tasksToBeCut(classTasks["3"],hostClass)...)
+			break
+		case "4":
+			listTasks = append(listTasks, tasksToBeCut(classTasks["4"],hostClass)...)
+			break
 	}
 	json.NewEncoder(w).Encode(listTasks)
 }
