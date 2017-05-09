@@ -64,10 +64,8 @@ func Sort(classList []*Task, searchValue float64) int {
         if listLength == 0 { //if the list is empty there is no need for sorting
                 return 0
         }
-
         for {
                 midPoint := (upperBound + lowerBound) / 2
-
                 if lowerBound > upperBound && classList[midPoint].TotalResourcesUtilization > searchValue {
                         return midPoint
                 } else if lowerBound > upperBound {
@@ -81,13 +79,11 @@ func Sort(classList []*Task, searchValue float64) int {
                 } else if classList[midPoint].TotalResourcesUtilization == searchValue {
                         return midPoint
                 }
-
 	 }
 }
 //function used to remove the task once it finished
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-
 	taskID := params["taskid"]
 	fmt.Println("Removing task " + taskID)
 
@@ -106,7 +102,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		//check if host class should be updated
 		if len(classTasks[taskClass]) == 0 && taskClass != "4"{
 			newClass := "0"
-			
 			if len(classTasks["2"]) > 0 {
 				newClass = "2"
 
@@ -121,18 +116,14 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, IP: ip, Update: false}		
 			go sendInfoHostRegistry(taskResources)	
 		}
-
 		locks[taskClass].Unlock()
-		
 		executeDockerCommand([]string{"kill",taskID})
-		
-		//removing container, due to a docker bug, the container is not deleted after finishing
-		go executeDockerCommand([]string{"rm",taskID, "-f"})
+		go executeDockerCommand([]string{"rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
+
 	}else {
 		fmt.Println("THIS TASK WAS ALREADY DELETED")
 		locks[taskClass].Unlock()
 	}
-
 }
 
 func executeDockerCommand(args []string){
@@ -150,7 +141,6 @@ func executeDockerCommand(args []string){
 func sendInfoHostRegistry(task *TaskResources){
 	//Update Task Registry with the task that was just created
 	url := "http://146.193.41.142:12345/host/killtask"
-
 	jsonStr, _ := json.Marshal(task)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -222,7 +212,6 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 		3 (HostClass) >= 2 (requestClass) if this request is scheduled to this host this host class will become 2 instead of 3.
 		By sending requestClass we simulate if cutting whatever is on the host the request fits
 */
-
 	switch requestClass {
 		case "1":
 			listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
@@ -237,16 +226,13 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 			listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 			break
 	}
-	
 	fmt.Println("Got tasks")
 	fmt.Println(listTasks)
-	
 	json.NewEncoder(w).Encode(listTasks)
 }
 
 func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 	returnList := make([]*Task, 0)
-	
 	for _, task := range listTasks {
 		taskCanBeCut, cutToReceive := taskCanBeCut(task, hostClass)
 		fmt.Println("Checking if task can be cut " + task.TaskID)
@@ -306,7 +292,6 @@ func taskCanBeCut(task *Task, hostClass string) (bool, float64) {
 func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	requestClass := params["requestclass"]
-
 	listTasks := make([]*Task, 0)
 
 	if requestClass == "1" {
@@ -347,7 +332,6 @@ func GetEqualHigherTasks(w http.ResponseWriter, req *http.Request) {
 	hostClass := params["hostclass"]
 	
 	listTasks := make([]*Task, 0)
-
 	/*
 	Here we send hostClass instead of requestClass because we are in the case of hostClass < requestClass so the class of the host 
 	after the request is assigned to this host will remain the same (the value of hostClass)
@@ -380,14 +364,13 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	
 	locks[requestClass].Lock()
 
-    tasks[task.TaskID] = &task
-    newTask = append(newTask, tasks[task.TaskID])
+    	tasks[task.TaskID] = &task
+    	newTask = append(newTask, tasks[task.TaskID])
 	//when a task is created we put at the end of the list since we don't know how much it will consume.
 	//then the monitor will send information about its resource utilization and it shall be updated on the list accordingly
 	fmt.Println("Task created with ID " + task.TaskID)
 
    	classTasks[requestClass] = append(classTasks[requestClass], newTask...)
-    
 	locks[requestClass].Unlock()
 }
 
@@ -406,8 +389,6 @@ func UpdateBoth(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Task no longer exists " + taskID)
 		return
 	}
-
-
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate, 64)
 	memoryToUpdate, _ := strconv.ParseFloat(memoryUpdate, 64)
 
@@ -486,9 +467,7 @@ func UpdateList(taskID string) {
 	for i := 0; i < len(classTasks[taskClass]); i++ {
 		fmt.Println(classTasks[taskClass][i])
 	}
-
 	locks[taskClass].Unlock()
-
 }
 
 func InsertTask(classTasks []*Task, index int, task *Task) ([]*Task) {
@@ -504,11 +483,8 @@ func InsertTask(classTasks []*Task, index int, task *Task) ([]*Task) {
 	return tmp
 }
 
-
-
 //updates cpu. message received from energy monitors. 
 func UpdateCPU(w http.ResponseWriter, req *http.Request) {
-
 	params := mux.Vars(req)
 	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
@@ -520,16 +496,15 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 		fmt.Println("Task no longer exists " + taskID)
 		return
 	}
-
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate,64)
 
 	taskClass := tasks[taskID].TaskClass	
 
-    locks[taskClass].Lock()
-    tasks[taskID].CPUUtilization = cpuToUpdate
-    locks[taskClass].Unlock()     
+    	locks[taskClass].Lock()
+    	tasks[taskID].CPUUtilization = cpuToUpdate
+    	locks[taskClass].Unlock()     
 
-    go UpdateTotalResourcesUtilization(cpuToUpdate, 0.0, 2, taskID) 	
+    	go UpdateTotalResourcesUtilization(cpuToUpdate, 0.0, 2, taskID) 	
 }
 //updates memory. message received from energy monitors. 
 func UpdateMemory(w http.ResponseWriter, req *http.Request) {
@@ -539,7 +514,6 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 	memoryUpdate := params["newmemory"]
 
 	fmt.Println("Updating memory: " + taskID)
-
 	//task no longer exists
 	if _, ok := tasks[taskID]; !ok {
 		fmt.Println("Task no longer exists " + taskID)
@@ -550,11 +524,11 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 
 	taskClass := tasks[taskID].TaskClass
 
-    locks[taskClass].Lock()
-    tasks[taskID].MemoryUtilization = memoryToUpdate  
-    locks[taskClass].Unlock()     
+    	locks[taskClass].Lock()
+    	tasks[taskID].MemoryUtilization = memoryToUpdate  
+    	locks[taskClass].Unlock()     
 
-    go UpdateTotalResourcesUtilization(0.0, memoryToUpdate, 3, taskID) 
+    	go UpdateTotalResourcesUtilization(0.0, memoryToUpdate, 3, taskID) 
 }
 
 func main() {
@@ -574,24 +548,6 @@ func main() {
 
 func ServeSchedulerRequests() {
 	router := mux.NewRouter()
-
-	/*	class1Tasks = append(class1Tasks, Task{TaskID: "1", TaskClass: "1"})
-		class1Tasks = append(class1Tasks, Task{TaskID: "2", TaskClass: "1"})
-		class1Tasks = append(class1Tasks, Task{TaskID: "3", TaskClass: "1"})
-		class1Tasks = append(class1Tasks, Task{TaskID: "4", TaskClass: "1"})
-		class2Tasks = append(class2Tasks, Task{TaskID: "5", TaskClass: "2"})
-		class2Tasks = append(class2Tasks, Task{TaskID: "6", TaskClass: "2"})
-		class2Tasks = append(class2Tasks, Task{TaskID: "7", TaskClass: "2"})
-		class2Tasks = append(class2Tasks, Task{TaskID: "8", TaskClass: "2"})
-		class3Tasks = append(class3Tasks, Task{TaskID: "9", TaskClass: "3"})
-		class3Tasks = append(class3Tasks, Task{TaskID: "10", TaskClass: "3"})
-		class3Tasks = append(class3Tasks, Task{TaskID: "11", TaskClass: "3"})
-		class3Tasks = append(class3Tasks, Task{TaskID: "12", TaskClass: "3"})
-		class4Tasks = append(class4Tasks, Task{TaskID: "13", TaskClass: "4"})
-		class4Tasks = append(class4Tasks, Task{TaskID: "14", TaskClass: "4"})
-		class4Tasks = append(class4Tasks, Task{TaskID: "15", TaskClass: "4"})
-		class4Tasks = append(class4Tasks, Task{TaskID: "16", TaskClass: "4"})
-	*/
 	router.HandleFunc("/task/{requestclass}", CreateTask).Methods("POST")
 	router.HandleFunc("/task/highercut/{requestclass}", GetHigherTasksCUT).Methods("GET")
 	router.HandleFunc("/task/higher/{requestclass}", GetHigherTasks).Methods("GET")
