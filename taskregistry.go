@@ -87,11 +87,11 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	taskID := params["taskid"]
 	fmt.Println("Removing task " + taskID)
 
-	taskClass := tasks[taskID].TaskClass
-	locks[taskClass].Lock()		
 	//this checks if the task still exists. This is required because there are two ways a task can be deleted. Either through a kill or the task finished
 	//If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
 	if task, ok  := tasks[taskID]; ok { 
+		taskClass := tasks[taskID].TaskClass
+		locks[taskClass].Lock()		
 		for i, task := range classTasks[taskClass] {
 			if task.TaskID == taskID {
 				classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
@@ -122,7 +122,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 
 	}else {
 		fmt.Println("THIS TASK WAS ALREADY DELETED")
-		locks[taskClass].Unlock()
 	}
 }
 
