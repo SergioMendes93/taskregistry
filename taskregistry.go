@@ -92,7 +92,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	//If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
 	if task, ok  := tasks[taskID]; ok { 
 		taskClass := task.TaskClass
-
 		locks[taskClass].Lock()
 
 		for i, task := range classTasks[taskClass] {
@@ -102,6 +101,8 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 				break
 			}
 		}
+		
+		//check if host class should be updated
 		if len(classTasks[taskClass]) == 0 && taskClass != "4"{
 			newClass := "0"
 			
@@ -112,43 +113,55 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 				newClass = "3"
 			} else {
 				newClass = "4"
-			}	
+			}
 			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, PreviousClass: taskClass , NewClass: newClass, Update: true}
-			json.NewEncoder(w).Encode(taskResources) 
-
+			go sendInfoHostRegistry(taskResources)	
 		}else {
-			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, Update: false}
-			json.NewEncoder(w).Encode(taskResources) 
+			taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, Update: false}		
+			go sendInfoHostRegistry(taskResources)	
 		}
 
 		locks[taskClass].Unlock()
-
-		cmd1 := exec.Command("docker","kill",taskID)
-
-		var out,stderr bytes.Buffer
-		cmd1.Stdout = &out
-		cmd1.Stderr = &stderr
-		err1 := cmd1.Run()
-		if err1 != nil {
-    		fmt.Println(fmt.Sprint(err1) + ": " + stderr.String())
-		}
-	
+		
+		executeDockerCommand([]string{"kill",taskID})
+		
 		//removing container, due to a docker bug, the container is not deleted after finishing
-		cmd := exec.Command("docker","rm", taskID, "-f")
-        var out2, stderr2 bytes.Buffer
-        cmd.Stdout = &out2
-        cmd.Stderr = &stderr2
-
-        if err2 := cmd.Run(); err2 != nil {
-                fmt.Println("Error using docker run at removing exited container")
-                fmt.Println(fmt.Sprint(err2) + ": " + stderr2.String())
-        }
+		executeDockerCommand([]string{"rm",taskID, "-f"})
 	}else {
+		//TODO REMOVER ISTO
 		fmt.Println("THIS TASK WAS ALREADY DELETED")
-		taskResources := &TaskResources{CPU : -1.0, Memory: -1.0}
-		json.NewEncoder(w).Encode(taskResources) 
 	}
+}
 
+func executeDockerCommand(args []string){
+	cmd := exec.Command("docker", args...)
+	var out,stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if err != nil {
+    		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	}
+}
+
+func sendInfoHostRegistry(task *TaskResources){
+	//Update Task Registry with the task that was just created
+	url := "http://146.193.41.142:12345/host/killtask"
+
+	jsonStr, _ := json.Marshal(task)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
+	req.Header.Set("X-Custom-Header", "myvalue")
+	req.Header.Set("Content-Type", "application/json")
+		
+	client := &http.Client{}
+	resp, err := client.Do(req)
+		
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
 }
 
 //this function will be used to update task info, when a cut is performed on the task
