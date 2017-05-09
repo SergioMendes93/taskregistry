@@ -194,7 +194,15 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 
 func GetClass4Tasks(w http.ResponseWriter, req *http.Request) {
 	locks["4"].Lock()
-	json.NewEncoder(w).Encode(classTasks["4"])	
+
+	returnList := make([]*Task, 0)
+	for _, task := range classTasks["4"] {
+		if task.TaskType == "service" {
+			returnList = append(returnList, task)
+		}
+	}
+	
+	json.NewEncoder(w).Encode(returnList)	
 	locks["4"].Unlock()
 }
 
