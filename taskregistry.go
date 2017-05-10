@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"math"
+	"fmt"
 	"os/exec"
 //	 "github.com/docker/docker/client"
 
@@ -85,8 +85,6 @@ func Sort(classList []*Task, searchValue float64) int {
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	taskID := params["taskid"]
-	fmt.Println("Removing task " + taskID)
-
 	//this checks if the task still exists. This is required because there are two ways a task can be deleted. Either through a kill or the task finished
 	//If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
 	if task, ok  := tasks[taskID]; ok { 
@@ -119,9 +117,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		locks[taskClass].Unlock()
 		executeDockerCommand([]string{"kill",taskID})
 		go executeDockerCommand([]string{"rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
-
-	}else {
-		fmt.Println("THIS TASK WAS ALREADY DELETED")
 	}
 }
 
@@ -170,24 +165,9 @@ func UpdateTask(w http.ResponseWriter, req *http.Request) {
 
 	locks[taskClass].Lock()
 
-	fmt.Println("Cut performed at " + taskID)
-	fmt.Print("Before CUT cpu: ") 
-	fmt.Print(tasks[taskID].CPU)
-	fmt.Print( " memory: ")
-	fmt.Print(tasks[taskID].Memory) 
-	fmt.Print( " cut received ")
-	fmt.Println(tasks[taskID].CutReceived)
-
 	tasks[taskID].CPU = cpuToUpdate
 	tasks[taskID].Memory = memoryToUpdate
 	tasks[taskID].CutReceived += amountCutted
-
-	fmt.Print("After CUT cpu: " )
-	fmt.Print(tasks[taskID].CPU)
-	fmt.Print( " memory: ")
-	fmt.Print(tasks[taskID].Memory) 
-	fmt.Print( " cut received ")
-	fmt.Println(tasks[taskID].CutReceived)
 
 	locks[taskClass].Unlock()	
 }
@@ -233,8 +213,6 @@ func GetHigherTasksCUT(w http.ResponseWriter, req *http.Request) {
 			listTasks = append(listTasks, tasksToBeCut(classTasks["4"], requestClass)...)
 			break
 	}
-	fmt.Println("Got tasks")
-	fmt.Println(listTasks)
 	json.NewEncoder(w).Encode(listTasks)
 }
 
@@ -242,11 +220,7 @@ func tasksToBeCut(listTasks []*Task, hostClass string) ([]*Task) {
 	returnList := make([]*Task, 0)
 	for _, task := range listTasks {
 		taskCanBeCut, cutToReceive := taskCanBeCut(task, hostClass)
-		fmt.Println("Checking if task can be cut " + task.TaskID)
-		fmt.Println(task)
 		if taskCanBeCut {
-			fmt.Print("Added to cut list with cut to receive: ")
-			 fmt.Println(cutToReceive)
 			task.CutToReceive = cutToReceive //the request will receive a smaller cut than the maximum supported due to cut restrictions
 			returnList = append(returnList, task)
 		}
@@ -327,8 +301,6 @@ func GetHigherTasks(w http.ResponseWriter, req *http.Request) {
 		listTasks = append(listTasks, classTasks["4"]...)
 		locks["4"].Unlock()
 	}
-	fmt.Println("Sending to scheduler these tasks to be killed: ")
-	fmt.Println(listTasks)
 	json.NewEncoder(w).Encode(listTasks)
 }
 
@@ -375,7 +347,6 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
     	newTask = append(newTask, tasks[task.TaskID])
 	//when a task is created we put at the end of the list since we don't know how much it will consume.
 	//then the monitor will send information about its resource utilization and it shall be updated on the list accordingly
-	fmt.Println("Task created with ID " + task.TaskID)
 
    	classTasks[requestClass] = append(classTasks[requestClass], newTask...)
 	locks[requestClass].Unlock()
@@ -389,11 +360,8 @@ func UpdateBoth(w http.ResponseWriter, req *http.Request) {
 	cpuUpdate := params["newcpu"]
 	memoryUpdate := params["newmemory"]
 
-	fmt.Println("Updating both: " + taskID)
-
 	//task no longer exists
 	if _, ok := tasks[taskID]; !ok {
-		fmt.Println("Task no longer exists " + taskID)
 		return
 	}
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate, 64)
@@ -417,10 +385,6 @@ func UpdateTotalResourcesUtilization(cpu float64, memory float64, updateType int
 	locks[taskClass].Lock()
 	previousTotalResourceUtilization := tasks[taskID].TotalResourcesUtilization
 	afterTotalResourceUtilization := 0.0
-
-	fmt.Print("Updating total resources utilization of " + taskID + " previous value ") 
-	fmt.Println(previousTotalResourceUtilization)
-
 	switch updateType {
 		case 1:
 			afterTotalResourceUtilization = math.Max(cpu, memory)
@@ -435,9 +399,6 @@ func UpdateTotalResourcesUtilization(cpu float64, memory float64, updateType int
 			tasks[taskID].TotalResourcesUtilization = afterTotalResourceUtilization
 			break
 	}
-	fmt.Print("Updating total resources utilization of " + taskID + " new value ")
-	fmt.Println(afterTotalResourceUtilization)
-
 	locks[taskClass].Unlock()
 
 	//now we must check if the host region should be updated or not
@@ -451,29 +412,16 @@ func UpdateList(taskID string) {
 	taskClass := tasks[taskID].TaskClass	
 
 	locks[taskClass].Lock()
-	fmt.Println("Updating task list, list elements: " + taskID)
-
 	for i := 0; i < len(classTasks[taskClass]); i++ {
-		fmt.Println(classTasks[taskClass][i])
 		if classTasks[taskClass][i].TaskID == taskID {
 			classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...)
 			break
 		}
 	}
-
-	fmt.Println("before new list ")
-	for i := 0; i < len(classTasks[taskClass]); i++ {
-		fmt.Println(classTasks[taskClass][i])
-	}
-
 	//this inserts in the list in its new position
 	index := Sort(classTasks[taskClass], tasks[taskID].TotalResourcesUtilization)		
 	classTasks[taskClass] = InsertTask(classTasks[taskClass], index, tasks[taskID])
 
-	fmt.Println("after new list ")
-	for i := 0; i < len(classTasks[taskClass]); i++ {
-		fmt.Println(classTasks[taskClass][i])
-	}
 	locks[taskClass].Unlock()
 }
 
@@ -496,11 +444,8 @@ func UpdateCPU(w http.ResponseWriter, req *http.Request) {
 	taskID := params["taskid"]
 	cpuUpdate := params["newcpu"]
 
-	fmt.Println("Updating cpu: " + taskID)
-
 	//task no longer exists
 	if _, ok := tasks[taskID]; !ok {
-		fmt.Println("Task no longer exists " + taskID)
 		return
 	}
 	cpuToUpdate, _ := strconv.ParseFloat(cpuUpdate,64)
@@ -520,10 +465,8 @@ func UpdateMemory(w http.ResponseWriter, req *http.Request) {
 	taskID := params["taskid"]
 	memoryUpdate := params["newmemory"]
 
-	fmt.Println("Updating memory: " + taskID)
 	//task no longer exists
 	if _, ok := tasks[taskID]; !ok {
-		fmt.Println("Task no longer exists " + taskID)
 		return
 	}
 
