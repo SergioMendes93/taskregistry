@@ -540,7 +540,7 @@ func main() {
 
 func ServeSchedulerRequests() {
 	router := mux.NewRouter()
-	router.HandleFunc("/task/{requestclass}", CreateTask).Methods("POST")
+	router.HandleFunc("/task/{requestclass}&{makespan}", CreateTask).Methods("POST")
 	router.HandleFunc("/task/highercut/{requestclass}", GetHigherTasksCUT).Methods("GET")
 	router.HandleFunc("/task/higher/{requestclass}", GetHigherTasks).Methods("GET")
 	router.HandleFunc("/task/equalhigher/{requestclass}&{hostclass}", GetEqualHigherTasks).Methods("GET")
