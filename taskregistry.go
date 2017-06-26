@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"os/exec"
 //	 "github.com/docker/docker/client"
-
+	"time"
 	"bytes"
 )
 
@@ -332,12 +332,54 @@ func GetEqualHigherTasks(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(listTasks)
 }
 
+//function used to remove the task after its makespan has elapsed
+func CountMakespan(makespan string, taskID string) {
+	makespanTime,_ := strconv.ParseInt(makespan, 10, 64)
+	time.Sleep(time.Duration(makespanTime) * time.Second) //after this time we remove the task
+
+ 	//this checks if the task still exists. This is required because there are two ways a task can be deleted. Either through a kill or the task finished
+        //If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
+        if task, ok  := tasks[taskID]; ok { 
+                taskClass := tasks[taskID].TaskClass
+                locks[taskClass].Lock()         
+                for i, task := range classTasks[taskClass] {
+                        if task.TaskID == taskID {
+                                classTasks[taskClass] = append(classTasks[taskClass][:i], classTasks[taskClass][i+1:]...) //eliminate from slice
+                                delete(tasks,taskID)
+                                break
+                        }
+                }       
+                //check if host class should be updated
+                if len(classTasks[taskClass]) == 0 && taskClass != "4"{
+                        newClass := "0"
+                        if len(classTasks["2"]) > 0 {
+                                newClass = "2"
+
+                        } else if len(classTasks["3"]) > 0 {
+                                newClass = "3"
+                        } else {
+                                newClass = "4"
+                        }
+                        taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, PreviousClass: taskClass , IP: ip, NewClass: newClass, Update: true}
+                        go sendInfoHostRegistry(taskResources)  
+                }else {
+                        taskResources := &TaskResources{CPU : task.CPU, Memory: task.Memory, IP: ip, Update: false}             
+                        go sendInfoHostRegistry(taskResources)  
+                }
+                locks[taskClass].Unlock()
+                executeDockerCommand([]string{"kill",taskID})
+                go executeDockerCommand([]string{"rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
+        }	
+}
 
 func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var task Task
 	_ = json.NewDecoder(req.Body).Decode(&task)
 	requestClass := params["requestclass"]
+	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
+	
+	go CountMakespan(makespan, task.TaskID)	
 
 	newTask := make([]*Task,0)
 	
