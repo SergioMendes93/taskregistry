@@ -116,7 +116,7 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 		}
 		locks[taskClass].Unlock()
 		executeDockerCommand([]string{"-H","tcp://"+ip+":2376","kill",taskID})
-		go executeDockerCommand([]string{"rm","-H", "tcp://"+ip+":2376",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
+		go executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
 	}
 }
 
