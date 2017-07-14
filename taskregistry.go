@@ -85,6 +85,8 @@ func Sort(classList []*Task, searchValue float64) int {
 func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	taskID := params["taskid"]
+
+	fmt.Println("Receiving Remove")
 	//this checks if the task still exists. This is required because there are two ways a task can be deleted. Either through a kill or the task finished
 	//If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
 	if task, ok  := tasks[taskID]; ok { 
