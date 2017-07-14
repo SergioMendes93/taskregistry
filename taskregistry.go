@@ -134,7 +134,7 @@ func executeDockerCommand(args []string){
 
 func sendInfoHostRegistry(task *TaskResources){
 	//Update Task Registry with the task that was just created
-	url := "http://146.193.41.142:12345/host/killtask"
+	url := "http://10.5.60.2:12345/host/killtask"
 	jsonStr, _ := json.Marshal(task)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonStr))
@@ -559,12 +559,14 @@ func getIPAddress() (string) {
     if err != nil {
         fmt.Println(err.Error())
     }
+    count := 0
     for _, a := range addrs {
         if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-            if ipnet.IP.To4() != nil {
+            if ipnet.IP.To4() != nil && count == 1 {
 		    fmt.Println(ipnet.IP.String())
                     return ipnet.IP.String()
             }
+	    count++
         }
     }
     return ""
