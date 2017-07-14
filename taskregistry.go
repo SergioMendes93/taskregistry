@@ -383,9 +383,9 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Creating task")	
 
 	requestClass := params["requestclass"]
-	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
+//	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	
-	go CountMakespan(makespan, task.TaskID)	
+//	go CountMakespan(makespan, task.TaskID)	
 
 	newTask := make([]*Task,0)
 	
