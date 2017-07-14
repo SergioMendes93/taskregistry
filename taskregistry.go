@@ -379,6 +379,9 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var task Task
 	_ = json.NewDecoder(req.Body).Decode(&task)
+
+	fmt.Println("Creating task")	
+
 	requestClass := params["requestclass"]
 	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	
