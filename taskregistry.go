@@ -379,7 +379,10 @@ func CountMakespan(makespan string, taskID string) {
 //function used to call java code that will fill the redis service with data
 func executeRedis (portNumber string, memory int64) {
 	memoryRequirement := strconv.FormatInt(memory, 10)
-	cmd := exec.Command("java", []string{"-cp", "./jedis2.jar:.", "fillRedis", ip, portNumber, memoryRequirement}...)
+        fmt.Println("Redis:")
+        fmt.Println(ip + portNumber + memoryRequirement)
+        args := []string{"-cp","./jedis2.jar:.","fillRedis", ip, portNumber, memoryRequirement}
+        cmd := exec.Command("java", args...)
 	var out,stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
