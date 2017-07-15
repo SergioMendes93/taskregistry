@@ -370,8 +370,9 @@ func CountMakespan(makespan string, taskID string) {
                         go sendInfoHostRegistry(taskResources)  
                 }
                 locks[taskClass].Unlock()
-                executeDockerCommand([]string{"kill",taskID})
-                go executeDockerCommand([]string{"rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
+		fmt.Println("Killing: makespan ended")
+                executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","kill",taskID})
+                go executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
         }	
 }
 
@@ -383,9 +384,9 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	fmt.Println("Creating task")	
 
 	requestClass := params["requestclass"]
-//	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
+	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	
-//	go CountMakespan(makespan, task.TaskID)	
+	go CountMakespan(makespan, task.TaskID)	
 
 	newTask := make([]*Task,0)
 	
