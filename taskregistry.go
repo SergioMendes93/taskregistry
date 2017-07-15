@@ -376,6 +376,20 @@ func CountMakespan(makespan string, taskID string) {
         }	
 }
 
+//function used to call java code that will fill the redis service with data
+func executeRedis (portNumber string, memory int64) {
+	memoryRequirement := strconv.FormatInt(memory, 10)
+	cmd := exec.Command("java", []string{"-cp", "./jedis2.jar:.", "fillRedis", ip, portNumber, memoryRequirement}...)
+	var out,stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if err != nil {
+    		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+	}
+}
+
 func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var task Task
@@ -385,7 +399,9 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 
 	requestClass := params["requestclass"]
 	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
-	
+	portNumber := params["port"]
+
+	go executeRedis(portNumber, task.Memory)	
 	go CountMakespan(makespan, task.TaskID)	
 
 	newTask := make([]*Task,0)
@@ -547,7 +563,7 @@ func main() {
 
 func ServeSchedulerRequests() {
 	router := mux.NewRouter()
-	router.HandleFunc("/task/{requestclass}&{makespan}", CreateTask).Methods("POST")
+	router.HandleFunc("/task/{requestclass}&{makespan}&{port}", CreateTask).Methods("POST")
 	router.HandleFunc("/task/highercut/{requestclass}", GetHigherTasksCUT).Methods("GET")
 	router.HandleFunc("/task/higher/{requestclass}", GetHigherTasks).Methods("GET")
 	router.HandleFunc("/task/equalhigher/{requestclass}&{hostclass}", GetEqualHigherTasks).Methods("GET")
