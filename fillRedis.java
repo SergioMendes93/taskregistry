@@ -32,6 +32,7 @@ public class fillRedis {
                 pipeline.sadd("key"+i, "value");
         // you can call pipeline.sync() and start new pipeline here if you think there're so much operations in one pipeline
 	        pipeline.sync();
+		System.out.println("doing at " + args[1]);
         }
    } 
 }
