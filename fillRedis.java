@@ -27,6 +27,7 @@ public class fillRedis {
 
         long value = (memoryRequirement * correspondentValue) / fiveMega; //TODO ver se isto funciona para 4gb (valor maximo)
 
+	System.out.println("Value to: " + value);
         Pipeline pipeline = jedis.pipelined();
         for (long i = 0 ; i < value; i++) {
                 pipeline.sadd("key"+i, "value");
