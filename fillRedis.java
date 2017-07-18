@@ -47,7 +47,7 @@ valuevaluevaluevaluevaluevaluevaluevalu                Este i vai depender da me
 		}catch (Exception e) {
 		}		
 	}
-	        	pipeline.sync();
+	       try { 	pipeline.sync(); } catch(Exception e) {}
 
                      /*   for (long i = 0 ; i < value; i++) {
                  // you can call pipeline.sync() and start new pipeline here if you think there're so much operations in one pipeline
