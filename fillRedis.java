@@ -28,7 +28,7 @@ valuevaluevaluevaluevaluevaluevaluevalu                Este i vai depender da me
 
         long value = (memoryRequirement * correspondentValue) / fiveMega; //TODO ver se isto funciona para 4gb (valor maximo)
 	long startTime = System.nanoTime();
-        long oneHour = new Long("25000000000");
+        long oneHour = new Long("5000000000");
 	int i = 0;
         Pipeline pipeline = jedis.pipelined();
 
