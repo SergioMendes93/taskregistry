@@ -375,13 +375,21 @@ func CountMakespan(makespan string, taskID string) {
                 go executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
         }	
 }
+//function used to remove the task after its makespan has elapsed when using the other scheduling algorithms
+func CountMakespanNotEnergy(makespan string, taskID string, cpu int64, memory int64) {
+	makespanTime,_ := strconv.ParseInt(makespan, 10, 64)
+	time.Sleep(time.Duration(makespanTime) * time.Second) //after this time we remove the task
+
+        taskResources := &TaskResources{CPU : cpu, Memory: memory, IP: ip, Update: false}             
+        go sendInfoHostRegistry(taskResources)  
+        executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","kill",taskID})
+        go executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
+}
 
 //function used to call java code that will fill the redis service with data
 func executeRedis (portNumber string, memory int64) {
 	time.Sleep(1 * time.Second) //after this time we remove the task
 	memoryRequirement := strconv.FormatInt(memory, 10)
-        fmt.Println("Redis:")
-        fmt.Println(ip + portNumber + memoryRequirement)
         args := []string{"-cp","./jedis2.jar:.","fillRedis", ip, portNumber, memoryRequirement}
         cmd := exec.Command("java", args...)
 	var out,stderr bytes.Buffer
@@ -403,16 +411,16 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	portNumber := params["port"]
 	
-	fmt.Println("AQUI")
 
 	if task.Image == "redis" {
 		go executeRedis(portNumber, task.Memory)
 	}	
-	go CountMakespan(makespan, task.TaskID)	
 
 	if requestClass == "0" {
+		go CountMakespanNotEnergy(makespan, task.TaskID, task.CPU, task.Memory)
 		return
 	}
+	go CountMakespan(makespan, task.TaskID)	
 
 	newTask := make([]*Task,0)
 	
