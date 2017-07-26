@@ -402,6 +402,23 @@ func executeRedis (portNumber string, memory int64) {
 	}
 }
 
+//function used to send to host registry which image and port should be used to make requests 
+func startRequests(portNumber string, image string, memoryAux int64, makespan string, ip string) {
+	memory := strconv.FormatInt(memoryAux, 10)
+
+	req, err := http.NewRequest("GET","http://10.5.60.2:8001/entrypoint?"+portNumber+"&"+image+"&"+memory+"&"+makespan+"&"+ip , nil)
+  
+	req.Header.Set("X-Custom-Header", "myvalue")
+	req.Header.Set("Content-Type", "application/json")
+
+    	client := &http.Client{}
+    	resp, err := client.Do(req)
+    	if err != nil {
+        	panic(err)
+    	}
+defer resp.Body.Close()
+}
+
 func CreateTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	var task Task
@@ -410,7 +427,10 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	requestClass := params["requestclass"]
 	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	portNumber := params["port"]
-	
+
+	if task.TaskType == "service" {
+		go startRequests(portNumber, task.Image, task.Memory, makespan, ip)
+	}
 
 	if task.Image == "redis" {
 		go executeRedis(portNumber, task.Memory)
