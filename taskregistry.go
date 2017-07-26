@@ -428,9 +428,9 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	portNumber := params["port"]
 
-	if task.TaskType == "service" {
+	/*if task.TaskType == "service" {
 		go startRequests(portNumber, task.Image, task.Memory, makespan, ip)
-	}
+	}*/
 
 	if task.Image == "redis" {
 		go executeRedis(portNumber, task.Memory)
