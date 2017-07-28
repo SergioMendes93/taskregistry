@@ -86,7 +86,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
 	taskID := params["taskid"]
 
-	fmt.Println("Receiving Remove")
 	//this checks if the task still exists. This is required because there are two ways a task can be deleted. Either through a kill or the task finished
 	//If its a kill, then this code will be ran twice so this check is required for error handling. If it finished, this code is only ran once 
 	if task, ok  := tasks[taskID]; ok { 
@@ -117,7 +116,6 @@ func RemoveTask(w http.ResponseWriter, req *http.Request) {
 			go sendInfoHostRegistry(taskResources)	
 		}
 		locks[taskClass].Unlock()
-		fmt.Println("killing at " + ip + " " + taskID)
 		executeDockerCommand([]string{"-H","tcp://"+ip+":2376","kill",taskID})
 		go executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
 	}
@@ -131,7 +129,7 @@ func executeDockerCommand(args []string){
 	err := cmd.Run()
 
 	if err != nil {
-    		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+    		//fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 	}
 }
 
@@ -370,7 +368,6 @@ func CountMakespan(makespan string, taskID string) {
                         go sendInfoHostRegistry(taskResources)  
                 }
                 locks[taskClass].Unlock()
-		fmt.Println("Killing: makespan ended")
                 executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","kill",taskID})
                 go executeDockerCommand([]string{"-H", "tcp://"+ip+":2376","rm",taskID, "-f"}) //removing container, due to a docker bug, the container is not deleted after finishing
         }	
@@ -398,7 +395,7 @@ func executeRedis (portNumber string, memory int64) {
 	err := cmd.Run()
 
 	if err != nil {
-    		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+    		//fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 	}
 }
 
@@ -428,9 +425,9 @@ func CreateTask(w http.ResponseWriter, req *http.Request) {
 	makespan := params["makespan"] //benchmark purposes: used to remove the task once its makespan time elapsed.
 	portNumber := params["port"]
 
-	/*if task.TaskType == "service" {
+	if task.TaskType == "service" {
 		go startRequests(portNumber, task.Image, task.Memory, makespan, ip)
-	}*/
+	}
 
 	if task.Image == "redis" {
 		go executeRedis(portNumber, task.Memory)
